@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Client Profitability Dashboard — Atticus Advisory Solutions</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#1a5c28;--green-mid:#2d7a3a;--green-light:#e4f2d8;--green-pale:#f0f7eb;
+  --white:#fff;--slate:#2c3e35;--muted:#5a7a5a;--border:#c0dca0;
+  --red:#b02020;--amber:#e6b800;--blue:#1a5aaa;
+  --sidebar-w:220px;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:Arial,sans-serif;background:var(--green-pale);color:var(--slate);font-size:13px;display:flex;flex-direction:column}
+
+/* ── TOP HEADER ── */
+.top-bar{background:var(--green);color:#fff;height:52px;display:flex;align-items:center;padding:0 18px;gap:14px;flex-shrink:0;z-index:100}
+.top-bar .logo{font-size:15px;font-weight:700;white-space:nowrap}
+.top-bar .period{font-size:11px;opacity:.75;margin-left:4px}
+.top-bar .spacer{flex:1}
+.top-bar .badge{background:#fff;color:var(--green);font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px}
+.btn{background:var(--green);color:#fff;border:none;border-radius:5px;padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn:hover{background:#155022}
+.btn.outline{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4)}
+.btn.outline:hover{background:rgba(255,255,255,.25)}
+.btn.green{background:var(--green);color:#fff}
+
+/* ── SHELL ── */
+.shell{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar-w);background:var(--green);flex-shrink:0;display:flex;flex-direction:column;overflow-y:auto}
+.sidebar-logo{padding:20px 16px 10px;border-bottom:1px solid rgba(255,255,255,.12)}
+.sidebar-logo .org{font-size:12px;font-weight:700;color:#a8d890;text-transform:uppercase;letter-spacing:.5px}
+.sidebar-logo .app{font-size:14px;font-weight:700;color:#fff;margin-top:3px;line-height:1.3}
+.sidebar-section{padding:14px 12px 4px;font-size:10px;font-weight:700;color:#7abe7a;text-transform:uppercase;letter-spacing:.6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;color:rgba(255,255,255,.75);font-size:13px;font-weight:600;transition:all .15s;border-left:3px solid transparent}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:rgba(255,255,255,.14);color:#fff;border-left-color:#a8d890}
+.nav-item .icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.nav-item .badge-count{margin-left:auto;background:#e6b800;color:#1a2e1a;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px}
+.nav-divider{height:1px;background:rgba(255,255,255,.1);margin:8px 12px}
+.sidebar-bottom{margin-top:auto;padding:12px}
+.upload-zone{background:rgba(255,255,255,.08);border:1.5px dashed rgba(255,255,255,.3);border-radius:7px;padding:10px 12px;cursor:pointer;transition:all .15s;margin-bottom:8px}
+.upload-zone:hover,.upload-zone.drag{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.6)}
+.upload-zone .uz-label{font-size:11px;font-weight:700;color:#a8d890;margin-bottom:3px}
+.upload-zone .uz-sub{font-size:10px;color:rgba(255,255,255,.5)}
+.upload-status{font-size:11px;padding:4px 8px;border-radius:4px;margin-top:4px;display:none}
+.upload-status.loading{display:block;background:rgba(255,255,255,.1);color:#a8d890}
+.upload-status.success{display:block;background:rgba(100,220,100,.15);color:#7abe7a}
+.upload-status.error{display:block;background:rgba(220,80,80,.15);color:#ffaaaa}
+
+/* ── MAIN CONTENT ── */
+.content{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.page{display:none;padding:20px 24px;flex:1}
+.page.active{display:block}
+
+/* ── SEARCH BAR (top of content) ── */
+.content-bar{background:#fff;border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.search-box{border:1px solid var(--border);border-radius:5px;padding:5px 10px;font-size:12px;width:200px;color:var(--slate)}
+.search-box:focus{outline:none;border-color:var(--green)}
+.period-badge{font-size:11px;font-weight:700;color:var(--muted)}
+
+/* ── KPI STRIP ── */
+.kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.kpi{background:#fff;border-radius:8px;border:1px solid var(--border);padding:14px 16px}
+.kpi.accent{background:var(--green);border-color:var(--green)}
+.kpi-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.kpi.accent .kpi-lbl{color:#a8d890}
+.kpi-val{font-size:22px;font-weight:700;color:var(--green);margin:5px 0 3px}
+.kpi.accent .kpi-val{color:#fff}
+.kpi-sub{font-size:11px;color:var(--muted)}
+.kpi.accent .kpi-sub{color:#a8d890}
+
+/* ── CARDS / SECTIONS ── */
+.card{background:#fff;border-radius:8px;border:1px solid var(--border);padding:18px}
+.card+.card{margin-top:16px}
+.card-title{font-size:14px;font-weight:700;color:var(--slate);margin-bottom:14px;display:flex;align-items:center;gap:7px;justify-content:space-between}
+.card-title .left{display:flex;align-items:center;gap:7px}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start}
+.chart-wrap{position:relative}
+
+/* ── ALERT BANNER ── */
+.alert-banner{background:#fffbe6;border:1.5px solid var(--amber);border-radius:8px;padding:14px 18px;margin-bottom:16px}
+.alert-banner h3{font-size:12px;font-weight:700;color:#7a5500;margin-bottom:10px}
+.alert-cards{display:flex;gap:10px;flex-wrap:wrap}
+.alert-card{background:#fff;border:1px solid #f0d060;border-radius:6px;padding:10px 14px;min-width:190px;flex:1;cursor:pointer}
+.alert-card:hover{background:#fffdf0}
+.ac-client{font-size:13px;font-weight:700;color:var(--slate)}
+.ac-reason{font-size:10px;color:#b06000;margin-top:3px}
+.ac-metrics{font-size:10px;color:var(--muted);margin-top:4px}
+
+/* ── CONCENTRATION WARN ── */
+.conc-warn{background:#fff0f5;border:1.5px solid #e060a0;border-radius:8px;padding:12px 18px;margin-bottom:16px;display:none}
+.conc-warn h3{font-size:12px;font-weight:700;color:#800040;margin-bottom:5px}
+
+/* ── TABLES ── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{background:var(--green-light)}
+thead th{padding:8px 10px;text-align:left;font-weight:700;color:var(--slate);border-bottom:2px solid #9abf7a;white-space:nowrap}
+thead th.r{text-align:right}
+thead th.c{text-align:center}
+tbody tr{border-bottom:1px solid var(--green-light);cursor:pointer;transition:background .1s}
+tbody tr:hover{background:#f0fbe8}
+tbody td{padding:7px 10px;vertical-align:middle}
+tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
+tbody td.c{text-align:center}
+
+/* ── PILLS ── */
+.pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700}
+.pill.pos{background:#d4f0c0;color:var(--green)}
+.pill.neg{background:#fde0e0;color:var(--red)}
+.pill.warn{background:#fef3c0;color:#7a5500}
+.flag-pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;margin:1px;white-space:nowrap}
+.flag-pill.opex{background:#fde8c8;color:#8a4000}
+.flag-pill.forex{background:#e0eeff;color:var(--blue)}
+.flag-pill.upsell{background:#d4f0c0;color:var(--green)}
+.flag-pill.review{background:#fde0e0;color:var(--red)}
+.rank{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:10px;font-weight:700;background:var(--green);color:#fff}
+.rank.g{background:#b8960a}
+.rank.s{background:#7a8a9a}
+.rank.b{background:#9a5020}
+
+/* ── HC TAGS ── */
+.hc-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+.hc-tag.growing{background:#d4f0c0;color:var(--green)}
+.hc-tag.declining{background:#fde0e0;color:var(--red)}
+.hc-tag.dormant{background:#e8e8e8;color:#505050}
+.hc-tag.stable{background:#fef3c0;color:#7a5500}
+.hc-tag.lost{background:#f0d0d0;color:#800000}
+.hc-tag.new{background:#e0eeff;color:var(--blue)}
+
+/* ── TOP10 TABS ── */
+.tab-row{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
+.tab-btn{background:var(--green-light);border:1px solid #9abf7a;border-radius:5px;padding:5px 14px;font-size:12px;font-weight:700;color:#2d5a2d;cursor:pointer}
+.tab-btn.active{background:var(--green);color:#fff;border-color:var(--green)}
+
+/* ── SCATTER LEGEND ── */
+.scatter-legend{display:flex;gap:14px;font-size:11px;margin-bottom:8px;flex-wrap:wrap}
+.scatter-legend span{display:flex;align-items:center;gap:4px}
+.dot{width:10px;height:10px;border-radius:50%}
+
+/* ── INSIGHTS ── */
+.insights-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ins-card{border-radius:7px;padding:14px;border-left:4px solid var(--green)}
+.ins-card.green{background:#f0fbe8;border-color:var(--green)}
+.ins-card.amber{background:#fffbe6;border-color:#c89a00}
+.ins-card.red{background:#fff3f3;border-color:var(--red)}
+.ins-card.blue{background:#f0f6ff;border-color:var(--blue)}
+.ins-card h4{font-size:12px;font-weight:700;margin-bottom:5px}
+.ins-card.green h4{color:var(--green)}
+.ins-card.amber h4{color:#7a5500}
+.ins-card.red h4{color:var(--red)}
+.ins-card.blue h4{color:var(--blue)}
+.ins-card p{font-size:11px;line-height:1.6;color:var(--slate)}
+
+/* ── COMMENTARY ── */
+.notes-area{width:100%;border:1px solid var(--border);border-radius:5px;padding:8px;font-size:12px;font-family:Arial,sans-serif;resize:vertical;min-height:70px;color:var(--slate)}
+.notes-area:focus{outline:none;border-color:var(--green)}
+
+/* ── MODAL ── */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center}
+#modal-overlay.open{display:flex}
+#modal{background:#fff;border-radius:10px;width:800px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal-hdr{background:var(--green);color:#fff;padding:14px 20px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between}
+.modal-hdr h2{font-size:15px;font-weight:700}
+.modal-close{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1}
+.modal-body{padding:20px}
+.modal-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.modal-kpi{background:var(--green-pale);border-radius:6px;padding:10px 12px;text-align:center}
+.modal-kpi-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.modal-kpi-val{font-size:17px;font-weight:700;color:var(--green);margin-top:4px}
+.modal-kpi-val.neg{color:var(--red)}
+.metric-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.metric-row label{font-size:11px;font-weight:700;color:var(--muted);width:120px;flex-shrink:0}
+.bar-track{flex:1;height:8px;background:var(--green-light);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;background:var(--green)}
+.bar-fill.neg{background:var(--red)}
+.metric-row .val{font-size:11px;font-weight:700;width:80px;text-align:right}
+.print-btn{background:var(--green);color:#fff;border:none;border-radius:5px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer}
+
+/* ── FOOTER ── */
+.footer{background:#1a3a1a;color:#7a9a7a;text-align:center;padding:8px;font-size:10px;flex-shrink:0}
+
+@media(max-width:900px){
+  .sidebar{width:60px}
+  .sidebar-logo,.sidebar-section,.nav-item span.label,.upload-zone .uz-label,.upload-zone .uz-sub{display:none}
+  .nav-item{justify-content:center;padding:10px}
+  .kpi-strip{grid-template-columns:1fr 1fr}
+  .charts-grid{grid-template-columns:1fr}
+  .insights-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="logo">Atticus Advisory Solutions</div>
+  <div class="period" id="topPeriod">For the 5 months ended 31 May 2026</div>
+  <div class="spacer"></div>
+  <button class="btn outline" onclick="exportCSV()" style="margin-right:4px">⬇ Export CSV</button>
+  <div class="badge">Powered by Xero</div>
+</div>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="app" style="font-size:13px;line-height:1.4">Client Profitability<br>Dashboard</div>
+  </div>
+
+  <div class="sidebar-section">Main</div>
+  <div class="nav-item active" onclick="nav('overview',this)">
+    <span class="icon">🏠</span><span class="label">Overview</span>
+  </div>
+  <div class="nav-item" onclick="nav('profitability',this)">
+    <span class="icon">💰</span><span class="label">Profitability</span>
+  </div>
+  <div class="nav-item" onclick="nav('headcount',this)">
+    <span class="icon">👥</span><span class="label">Headcount</span>
+  </div>
+  <div class="nav-item" onclick="nav('clients',this)">
+    <span class="icon">📋</span><span class="label">All Clients</span>
+  </div>
+
+  <div class="nav-divider"></div>
+  <div class="sidebar-section">Analysis</div>
+  <div class="nav-item" id="nav-atrisk" onclick="nav('atrisk',this)">
+    <span class="icon">⚠️</span><span class="label">At-Risk</span>
+    <span class="badge-count" id="atRiskCount">—</span>
+  </div>
+  <div class="nav-item" onclick="nav('insights',this)">
+    <span class="icon">🔍</span><span class="label">Insights</span>
+  </div>
+  <div class="nav-item" onclick="nav('commentary',this)">
+    <span class="icon">📝</span><span class="label">Commentary</span>
+  </div>
+
+  <div class="nav-divider"></div>
+  <div class="sidebar-bottom">
+    <div class="sidebar-section" style="padding:0 0 8px">Data Sources</div>
+
+    <div class="upload-zone" id="uploadDrop"
+      onclick="document.getElementById('fileUpload').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="this.classList.remove('drag');handleDrop(event)">
+      <div class="uz-label">📂 Xero Export</div>
+      <div class="uz-sub">Click or drop .xlsx</div>
+    </div>
+    <input type="file" id="fileUpload" accept=".xlsx" style="display:none" onchange="handleFileUpload(event)">
+    <div class="upload-status" id="uploadStatus"></div>
+
+    <div class="upload-zone" id="uploadDropHC"
+      onclick="document.getElementById('fileUploadHC').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="this.classList.remove('drag');handleDropHC(event)">
+      <div class="uz-label">👥 Headcount Report</div>
+      <div class="uz-sub">Click or drop .xlsx</div>
+    </div>
+    <input type="file" id="fileUploadHC" accept=".xlsx" style="display:none" onchange="handleFileUploadHC(event)">
+    <div class="upload-status" id="uploadStatusHC"></div>
+
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.1)">
+      <button onclick="clearSavedData()" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.5);border-radius:5px;padding:5px;font-size:10px;cursor:pointer" title="Clear all saved data and revert to hardcoded defaults">
+        🗑 Reset saved data
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- CONTENT AREA -->
+<div class="content">
+  <!-- Search/filter bar -->
+  <div class="content-bar">
+    <input type="text" class="search-box" id="searchInput" placeholder="🔍 Search clients…" oninput="applyFilters()">
+    <span class="period-badge" id="periodInfo">Data as at 31 May 2026</span>
+  </div>
+
+  <!-- ══ PAGE: OVERVIEW ══ -->
+  <div class="page active" id="page-overview">
+    <div class="kpi-strip" id="kpiStrip">
+      <div class="kpi accent"><div class="kpi-lbl">Total Revenue</div><div class="kpi-val" id="kpiRev">₱347.5M</div><div class="kpi-sub">All active clients</div></div>
+      <div class="kpi"><div class="kpi-lbl">Gross Profit</div><div class="kpi-val" id="kpiGP">₱59.1M</div><div class="kpi-sub">GP Margin: <strong id="kpiGPM">17.0%</strong></div></div>
+      <div class="kpi"><div class="kpi-lbl">EBITDA</div><div class="kpi-val" id="kpiEB">₱39.3M</div><div class="kpi-sub">EBITDA Margin: <strong id="kpiEBM">11.3%</strong></div></div>
+      <div class="kpi"><div class="kpi-lbl">Net Profit</div><div class="kpi-val" id="kpiNP">₱65.9M</div><div class="kpi-sub">NP Margin: <strong id="kpiNPM">19.0%</strong></div></div>
+      <div class="kpi"><div class="kpi-lbl">FX Gains</div><div class="kpi-val" id="kpiFX" style="color:var(--blue)">₱26.6M</div><div class="kpi-sub">Realised currency gains</div></div>
+    </div>
+
+    <div class="conc-warn" id="concWarning">
+      <h3>🔴 Revenue Concentration Risk</h3>
+      <div id="concContent"></div>
+    </div>
+
+    <!-- Top 10 by Profitability -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">
+        <span class="left">🏆 Top 10 Clients by Profitability</span>
+      </div>
+      <div class="tab-row" id="overviewTop10Tabs">
+        <button class="tab-btn active" onclick="showOverviewTop10('gp',this)">By Gross Profit</button>
+        <button class="tab-btn" onclick="showOverviewTop10('ebitda',this)">By EBITDA</button>
+        <button class="tab-btn" onclick="showOverviewTop10('np',this)">By Net Profit</button>
+      </div>
+      <div class="tbl-wrap" id="overviewTop10Wrap"></div>
+    </div>
+
+    <!-- Top 10 by FTE -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="left">👥 Top 10 Clients by Current FTE</span></div>
+      <div class="tbl-wrap" id="top15HCTableWrap"></div>
+    </div>
+    <!-- At-Risk at the bottom -->
+    <div class="alert-banner" id="atRiskBanner">
+      <h3>⚠️ At-Risk Clients — Negative EBITDA with Active Revenue</h3>
+      <div class="alert-cards" id="atRiskCards"></div>
+    </div>
+  </div>
+
+  <!-- ══ PAGE: PROFITABILITY ══ -->
+  <div class="page" id="page-profitability">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px"><span class="left">Revenue vs Gross Profit — Top 15</span></div>
+        <div style="height:280px;position:relative"><canvas id="cRevGP" role="img" aria-label="Revenue vs gross profit bar chart">Revenue and gross profit by client.</canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px"><span class="left">GP Margin % — Top 15</span></div>
+        <div style="height:280px;position:relative"><canvas id="cGPM" role="img" aria-label="GP margin bar chart">GP margin by client.</canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title" style="margin-bottom:10px"><span class="left">EBITDA vs Net Profit — Top 15</span></div>
+      <div style="height:280px;position:relative"><canvas id="cEBNP" role="img" aria-label="EBITDA vs net profit bar chart">EBITDA and net profit comparison.</canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        <span class="left">🏆 Top 10 Clients by Profitability</span>
+      </div>
+      <div class="tab-row">
+        <button class="tab-btn active" onclick="showTop10('gp',this)">By Gross Profit</button>
+        <button class="tab-btn" onclick="showTop10('ebitda',this)">By EBITDA</button>
+        <button class="tab-btn" onclick="showTop10('np',this)">By Net Profit</button>
+      </div>
+      <div class="tbl-wrap" id="top10TableWrap"></div>
+    </div>
+  </div>
+
+  <!-- ══ PAGE: HEADCOUNT ══ -->
+  <div class="page" id="page-headcount">
+    <div class="kpi-strip" style="grid-template-columns:repeat(5,1fr)">
+      <div class="kpi accent"><div class="kpi-lbl">Total FTEs</div><div class="kpi-val" id="hcTotal">472</div><div class="kpi-sub" id="hcChange">vs prior month</div></div>
+      <div class="kpi"><div class="kpi-lbl">Growing</div><div class="kpi-val" style="color:var(--green)" id="hcGrowing">—</div><div class="kpi-sub">Net HC increase</div></div>
+      <div class="kpi"><div class="kpi-lbl">Declining</div><div class="kpi-val" style="color:var(--red)" id="hcDeclining">—</div><div class="kpi-sub">Immediate attention</div></div>
+      <div class="kpi"><div class="kpi-lbl">Dormant / Stable</div><div class="kpi-val" style="color:#7a5500" id="hcDormant">—</div><div class="kpi-sub">No growth momentum</div></div>
+      <div class="kpi"><div class="kpi-lbl">Lost Clients</div><div class="kpi-val" style="color:#800000" id="hcLost">—</div><div class="kpi-sub">HC dropped to zero</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px"><span class="left">Portfolio FTE Trend — Dec-24 to May-26</span></div>
+        <div style="height:230px;position:relative"><canvas id="cHCTrend" role="img" aria-label="Portfolio FTE trend line chart">Portfolio headcount over time.</canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px"><span class="left">Top 15 Clients by Current FTE</span></div>
+        <div style="height:230px;position:relative"><canvas id="cHCBar" role="img" aria-label="Top 15 clients FTE bar chart">FTE by client.</canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between">
+        <span class="left">👥 Client Headcount by Month</span>
+        <div style="display:flex;gap:6px">
+          <button class="tab-btn active" onclick="filterHC('all',this)" style="padding:3px 10px;font-size:11px">All</button>
+          <button class="tab-btn" onclick="filterHC('Growing',this)" style="padding:3px 10px;font-size:11px;background:#d4f0c0;color:var(--green);border-color:#7abe7a">Growing</button>
+          <button class="tab-btn" onclick="filterHC('Declining',this)" style="padding:3px 10px;font-size:11px;background:#fde0e0;color:var(--red);border-color:#e04a4a">Declining</button>
+          <button class="tab-btn" onclick="filterHC('Dormant',this)" style="padding:3px 10px;font-size:11px;background:#e8e8e8;color:#505050;border-color:#aaa">Dormant</button>
+        </div>
+      </div>
+      <!-- Top scrollbar mirror -->
+      <div id="hcScrollTop" style="overflow-x:auto;height:12px;margin-bottom:2px" onscroll="syncHCScroll(this,'hcScrollBody')">
+        <div id="hcScrollTopInner" style="height:1px"></div>
+      </div>
+      <div id="hcScrollBody" style="overflow-x:auto" onscroll="syncHCScroll(this,'hcScrollTop')">
+        <div id="hcTableWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ PAGE: ALL CLIENTS ══ -->
+  <div class="page" id="page-clients">
+    <div class="card">
+      <div class="card-title">
+        <span class="left">📋 All Clients — Full Profitability + Headcount</span>
+        <div style="display:flex;gap:7px;align-items:center">
+          <label style="font-size:11px;color:var(--muted);font-weight:700">Sort:</label>
+          <select id="sortSel" onchange="renderFullTable()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:#fff;color:var(--slate)">
+            <option value="revenue">Revenue</option>
+            <option value="gross_profit">Gross Profit</option>
+            <option value="ebitda">EBITDA</option>
+            <option value="net_profit">Net Profit</option>
+            <option value="gp_margin">GP Margin %</option>
+            <option value="np_margin">NP Margin %</option>
+          </select>
+        </div>
+      </div>
+      <!-- Top scrollbar mirror -->
+      <div id="allScrollTop" style="overflow-x:auto;height:12px;margin-bottom:2px" onscroll="syncScroll(this,'allScrollBody')">
+        <div id="allScrollTopInner" style="height:1px"></div>
+      </div>
+      <div id="allScrollBody" style="overflow-x:auto" onscroll="syncScroll(this,'allScrollTop')">
+        <div id="fullTableWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ PAGE: AT-RISK ══ -->
+  <div class="page" id="page-atrisk">
+    <div class="card">
+      <div class="card-title"><span class="left">⚠️ At-Risk Clients — Full Detail</span></div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Clients with active revenue but negative EBITDA. Operating costs exceed gross profit — action required.</p>
+      <div class="tbl-wrap" id="atRiskFullTable"></div>
+    </div>
+  </div>
+
+  <!-- ══ PAGE: INSIGHTS ══ -->
+  <div class="page" id="page-insights">
+    <div class="card">
+      <div class="card-title"><span class="left">🔍 AI-Generated Portfolio Insights</span></div>
+      <div class="insights-grid" id="insightsGrid"></div>
+    </div>
+  </div>
+
+  <!-- ══ PAGE: COMMENTARY ══ -->
+  <div class="page" id="page-commentary">
+    <div class="card">
+      <div class="card-title"><span class="left">📝 Monthly Commentary</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#2d5a2d;display:block;margin-bottom:6px">Period Notes</label>
+          <textarea id="periodNotes" class="notes-area" style="min-height:120px" placeholder="e.g. April 2026 — FOREX gains boosted net profit by ₱26.6M across portfolio…"></textarea>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#2d5a2d;display:block;margin-bottom:6px">Action Items for Next Period</label>
+          <textarea id="actionNotes" class="notes-area" style="min-height:120px" placeholder="e.g. 1. Review OPEX for APHOBOS&#10;2. FOREX hedging discussion with BRING IT&#10;3. Upsell — CIRRUS ERP"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn green" onclick="saveNotes()">💾 Save Notes</button>
+        <span id="notesSaved" style="font-size:11px;color:var(--green);display:none">✓ Saved</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+</div><!-- /shell -->
+
+<!-- MODAL -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal">
+    <div class="modal-hdr">
+      <h2 id="modal-title">Client Profile</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div class="footer">
+  Atticus Advisory Solutions, Inc. &nbsp;·&nbsp; Client Profitability Dashboard &nbsp;·&nbsp; Confidential &amp; Internal Use Only &nbsp;·&nbsp; All amounts in Philippine Pesos (₱)
+</div>
+
+<script>
+// ── Navigation ──
+function nav(page, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const pg = document.getElementById('page-' + page);
+  if (pg) pg.classList.add('active');
+  // lazy-render charts when tabs become visible
+  if (page === 'profitability') { buildProfitCharts(); renderTop10('gp'); }
+  if (page === 'headcount') buildHCSection();
+  if (page === 'clients') renderFullTable();
+  if (page === 'atrisk') renderAtRiskFull();
+  if (page === 'insights') buildInsights();
+}
+
+// ── Data ──
+const RAW_DATA=[{"client":"311 CLOUD","revenue":1607224.69,"gross_profit":198857.23,"gp_margin":12.37,"ebitda":144526.97,"ebitda_margin":8.99,"forex":-149717.08,"net_profit":294244.05,"np_margin":18.31},{"client":"APHOBOS","revenue":386417.49,"gross_profit":203784.79,"gp_margin":52.74,"ebitda":-423079.13,"ebitda_margin":-109.49,"forex":-22060.96,"net_profit":-401018.17,"np_margin":-103.78},{"client":"ASG","revenue":1073058.38,"gross_profit":357997.62,"gp_margin":33.36,"ebitda":259885.16,"ebitda_margin":24.22,"forex":-71591.5,"net_profit":331476.66,"np_margin":30.89},{"client":"ASHOKAN","revenue":1400498.29,"gross_profit":210700.94,"gp_margin":15.04,"ebitda":-381630.45,"ebitda_margin":-27.25,"forex":-149896.62,"net_profit":-231733.83,"np_margin":-16.55},{"client":"AVANO","revenue":8136055.33,"gross_profit":1213564.7,"gp_margin":14.92,"ebitda":815642.61,"ebitda_margin":10.03,"forex":35326.4,"net_profit":780316.21,"np_margin":9.59},{"client":"BEPOZ","revenue":29624221.59,"gross_profit":4035841.15,"gp_margin":13.62,"ebitda":2402756.2,"ebitda_margin":8.11,"forex":-2543642.6,"net_profit":4946398.8,"np_margin":16.7},{"client":"BEZOS AI","revenue":690653.18,"gross_profit":217966.54,"gp_margin":31.56,"ebitda":152730.02,"ebitda_margin":22.11,"forex":-66777.07,"net_profit":219507.09,"np_margin":31.78},{"client":"BLUEBIRD","revenue":211044.44,"gross_profit":83544.44,"gp_margin":39.59,"ebitda":83544.44,"ebitda_margin":39.59,"forex":1150.74,"net_profit":82393.7,"np_margin":39.04},{"client":"BLUEBRIDGE ONE","revenue":1217993.05,"gross_profit":147669.81,"gp_margin":12.12,"ebitda":102094.09,"ebitda_margin":8.38,"forex":0.0,"net_profit":102094.09,"np_margin":8.38},{"client":"BLUECOLLAR","revenue":19633824.5,"gross_profit":2712974.22,"gp_margin":13.82,"ebitda":2066817.74,"ebitda_margin":10.53,"forex":-1894676.0,"net_profit":3961493.74,"np_margin":20.18},{"client":"BOARD INTERNATIONAL","revenue":2491851.98,"gross_profit":889100.7,"gp_margin":35.68,"ebitda":-38429.71,"ebitda_margin":-1.54,"forex":-143654.04,"net_profit":105224.33,"np_margin":4.22},{"client":"BPM","revenue":34431302.47,"gross_profit":3335654.49,"gp_margin":9.69,"ebitda":2412710.68,"ebitda_margin":7.01,"forex":-1067004.42,"net_profit":3479715.1,"np_margin":10.11},{"client":"BRIGHTFIN","revenue":15552313.84,"gross_profit":3400005.44,"gp_margin":21.86,"ebitda":2614760.93,"ebitda_margin":16.81,"forex":-1306727.11,"net_profit":3921488.04,"np_margin":25.21},{"client":"BRING IT","revenue":15086728.67,"gross_profit":1095655.29,"gp_margin":7.26,"ebitda":555418.84,"ebitda_margin":3.68,"forex":-1652105.5,"net_profit":2207524.34,"np_margin":14.63},{"client":"BUSINESS SOLUTION PARTNERS","revenue":619361.6,"gross_profit":619361.6,"gp_margin":100.0,"ebitda":619361.6,"ebitda_margin":100.0,"forex":-3680.16,"net_profit":623041.76,"np_margin":100.59},{"client":"CIRRUS ERP","revenue":5494498.75,"gross_profit":2211889.95,"gp_margin":40.26,"ebitda":1717393.67,"ebitda_margin":31.26,"forex":-126500.09,"net_profit":1843893.76,"np_margin":33.56},{"client":"CLOUD CULTURE","revenue":2346359.56,"gross_profit":308239.82,"gp_margin":13.14,"ebitda":251610.9,"ebitda_margin":10.72,"forex":-470368.91,"net_profit":721979.81,"np_margin":30.77},{"client":"COGNIGY","revenue":1548833.52,"gross_profit":841364.84,"gp_margin":54.32,"ebitda":658034.87,"ebitda_margin":42.49,"forex":-93057.65,"net_profit":751092.52,"np_margin":48.49},{"client":"KIT","revenue":26638852.91,"gross_profit":9269468.71,"gp_margin":34.8,"ebitda":7057515.21,"ebitda_margin":26.49,"forex":-611569.58,"net_profit":7669084.79,"np_margin":28.79},{"client":"CYBEROPS","revenue":49396.33,"gross_profit":-16839.43,"gp_margin":-34.09,"ebitda":-115426.84,"ebitda_margin":-233.67,"forex":-1883.03,"net_profit":-113543.81,"np_margin":-229.86},{"client":"CYTHERA","revenue":571695.28,"gross_profit":189721.92,"gp_margin":33.19,"ebitda":158093.18,"ebitda_margin":27.65,"forex":-98950.92,"net_profit":257044.1,"np_margin":44.96},{"client":"DOOZY","revenue":0.0,"gross_profit":0.0,"gp_margin":0,"ebitda":-30548.76,"ebitda_margin":0,"forex":0.0,"net_profit":-30548.76,"np_margin":0},{"client":"DTSANZ","revenue":3218736.41,"gross_profit":650142.52,"gp_margin":20.2,"ebitda":480606.29,"ebitda_margin":14.93,"forex":-40178.15,"net_profit":520784.44,"np_margin":16.18},{"client":"DYNED","revenue":199867.85,"gross_profit":34007.82,"gp_margin":17.02,"ebitda":27547.39,"ebitda_margin":13.78,"forex":-58165.16,"net_profit":85712.55,"np_margin":42.88},{"client":"EAGLE","revenue":1054075.95,"gross_profit":477562.61,"gp_margin":45.31,"ebitda":477562.61,"ebitda_margin":45.31,"forex":-13858.69,"net_profit":491421.3,"np_margin":46.62},{"client":"EKWANI","revenue":26526973.7,"gross_profit":4073473.36,"gp_margin":15.36,"ebitda":3292555.1,"ebitda_margin":12.41,"forex":-2623572.3,"net_profit":5916127.4,"np_margin":22.3},{"client":"ELIVE","revenue":2642268.36,"gross_profit":712837.41,"gp_margin":26.98,"ebitda":543930.62,"ebitda_margin":20.59,"forex":-315035.68,"net_profit":858966.3,"np_margin":32.51},{"client":"EXILE","revenue":664992.2,"gross_profit":167933.54,"gp_margin":25.25,"ebitda":106954.6,"ebitda_margin":16.08,"forex":-47180.93,"net_profit":154135.53,"np_margin":23.18},{"client":"FLEXXUS","revenue":296079.55,"gross_profit":235658.51,"gp_margin":79.59,"ebitda":82106.64,"ebitda_margin":27.73,"forex":-10693.27,"net_profit":92799.91,"np_margin":31.34},{"client":"FORUM","revenue":1405706.55,"gross_profit":573348.05,"gp_margin":40.79,"ebitda":423764.6,"ebitda_margin":30.15,"forex":-168645.31,"net_profit":592409.91,"np_margin":42.14},{"client":"GOLD BOND","revenue":1311473.62,"gross_profit":95228.09,"gp_margin":7.26,"ebitda":-78019.41,"ebitda_margin":-5.95,"forex":-125740.7,"net_profit":47721.29,"np_margin":3.64},{"client":"GOLF SWAG","revenue":640150.65,"gross_profit":276656.28,"gp_margin":43.22,"ebitda":222980.4,"ebitda_margin":34.83,"forex":-43628.23,"net_profit":266608.63,"np_margin":41.65},{"client":"HCGLOBAL","revenue":0.0,"gross_profit":0.0,"gp_margin":0,"ebitda":-30548.76,"ebitda_margin":0,"forex":0.0,"net_profit":-30548.76,"np_margin":0},{"client":"HUM","revenue":336670.13,"gross_profit":336670.13,"gp_margin":100.0,"ebitda":278070.84,"ebitda_margin":82.59,"forex":31505.02,"net_profit":246565.82,"np_margin":73.24},{"client":"JACKSON","revenue":555459.89,"gross_profit":263390.93,"gp_margin":47.42,"ebitda":9316.14,"ebitda_margin":1.68,"forex":6431.74,"net_profit":2884.4,"np_margin":0.52},{"client":"KIMBERLITE","revenue":2032277.45,"gross_profit":163973.26,"gp_margin":8.07,"ebitda":-265537.87,"ebitda_margin":-13.07,"forex":-101000.82,"net_profit":-164537.05,"np_margin":-8.1},{"client":"KLUGO","revenue":2943649.6,"gross_profit":268060.53,"gp_margin":9.11,"ebitda":8372.46,"ebitda_margin":0.28,"forex":-479228.49,"net_profit":487600.95,"np_margin":16.56},{"client":"LAMA","revenue":0.0,"gross_profit":-43474.46,"gp_margin":0,"ebitda":-43474.46,"ebitda_margin":0,"forex":0.0,"net_profit":-43474.46,"np_margin":0},{"client":"LANDMARK","revenue":2876129.16,"gross_profit":606949.76,"gp_margin":21.1,"ebitda":444190.5,"ebitda_margin":15.44,"forex":-236673.15,"net_profit":680863.65,"np_margin":23.67},{"client":"LAYER3","revenue":529774.74,"gross_profit":152848.53,"gp_margin":28.85,"ebitda":117521.02,"ebitda_margin":22.18,"forex":-55532.04,"net_profit":173053.06,"np_margin":32.67},{"client":"MAAS ENERGY","revenue":1589272.17,"gross_profit":527146.73,"gp_margin":33.17,"ebitda":472705.59,"ebitda_margin":29.74,"forex":-167664.32,"net_profit":640369.91,"np_margin":40.29},{"client":"MACROFIN","revenue":30347218.99,"gross_profit":3940098.51,"gp_margin":12.98,"ebitda":3121265.83,"ebitda_margin":10.29,"forex":-850729.73,"net_profit":3971995.56,"np_margin":13.09},{"client":"MERSIVE","revenue":281099.05,"gross_profit":85274.66,"gp_margin":30.34,"ebitda":63464.12,"ebitda_margin":22.58,"forex":-18291.92,"net_profit":81756.04,"np_margin":29.08},{"client":"MODULO","revenue":3730137.27,"gross_profit":644098.66,"gp_margin":17.27,"ebitda":421194.96,"ebitda_margin":11.29,"forex":-286598.37,"net_profit":707793.33,"np_margin":18.97},{"client":"MOLLIE","revenue":1733552.7,"gross_profit":333537.85,"gp_margin":19.24,"ebitda":255384.57,"ebitda_margin":14.73,"forex":-249944.98,"net_profit":505329.55,"np_margin":29.15},{"client":"MOSS ADAM","revenue":6817792.89,"gross_profit":1680622.8,"gp_margin":24.65,"ebitda":1470855.63,"ebitda_margin":21.57,"forex":-1015950.01,"net_profit":2486805.64,"np_margin":36.48},{"client":"NET AT WORK","revenue":904354.65,"gross_profit":194192.43,"gp_margin":21.47,"ebitda":144182.48,"ebitda_margin":15.94,"forex":-85605.94,"net_profit":229788.42,"np_margin":25.41},{"client":"NET LOBSTER","revenue":3431714.43,"gross_profit":665001.78,"gp_margin":19.38,"ebitda":349336.2,"ebitda_margin":10.18,"forex":-280260.93,"net_profit":629597.13,"np_margin":18.35},{"client":"NETGAIN","revenue":32549409.98,"gross_profit":7616356.56,"gp_margin":23.4,"ebitda":5496207.52,"ebitda_margin":16.89,"forex":-2795379.06,"net_profit":8291586.58,"np_margin":25.47},{"client":"NUAGE","revenue":30008770.53,"gross_profit":3913237.98,"gp_margin":13.04,"ebitda":2963752.51,"ebitda_margin":9.88,"forex":-815093.8,"net_profit":3778846.31,"np_margin":12.59},{"client":"ONE DEGREE","revenue":2143910.2,"gross_profit":645257.52,"gp_margin":30.1,"ebitda":532018.0,"ebitda_margin":24.82,"forex":-239334.68,"net_profit":771352.68,"np_margin":35.98},{"client":"ONLINEONE","revenue":9899058.07,"gross_profit":1060978.38,"gp_margin":10.72,"ebitda":735786.31,"ebitda_margin":7.43,"forex":-2153768.12,"net_profit":2889554.43,"np_margin":29.19},{"client":"OSI DIGITAL","revenue":32072304.87,"gross_profit":3030764.79,"gp_margin":9.45,"ebitda":2049656.59,"ebitda_margin":6.39,"forex":-3085291.12,"net_profit":5134947.71,"np_margin":16.01},{"client":"PALLADIUM","revenue":3269260.25,"gross_profit":856957.02,"gp_margin":26.21,"ebitda":703433.11,"ebitda_margin":21.52,"forex":-287379.41,"net_profit":990812.52,"np_margin":30.31},{"client":"PEXAPARK","revenue":2704874.71,"gross_profit":504345.77,"gp_margin":18.65,"ebitda":305104.13,"ebitda_margin":11.28,"forex":-219139.04,"net_profit":524243.17,"np_margin":19.38},{"client":"PLAYQ","revenue":636796.18,"gross_profit":171405.14,"gp_margin":26.92,"ebitda":133785.37,"ebitda_margin":21.01,"forex":-21228.32,"net_profit":155013.69,"np_margin":24.34},{"client":"PRIMARY","revenue":225492.02,"gross_profit":102079.35,"gp_margin":45.27,"ebitda":-120951.88,"ebitda_margin":-53.64,"forex":-16823.63,"net_profit":-104128.25,"np_margin":-46.18},{"client":"PRIME MSO","revenue":353.6,"gross_profit":353.6,"gp_margin":100.0,"ebitda":-82735.55,"ebitda_margin":-23398.06,"forex":353.6,"net_profit":-83089.15,"np_margin":-23498.06},{"client":"PRITAM","revenue":220219.56,"gross_profit":-13602.14,"gp_margin":-6.18,"ebitda":-351971.87,"ebitda_margin":-159.83,"forex":7396.72,"net_profit":-359368.59,"np_margin":-163.19},{"client":"RUX","revenue":367190.12,"gross_profit":367190.12,"gp_margin":100.0,"ebitda":367190.12,"ebitda_margin":100.0,"forex":7912.23,"net_profit":359277.89,"np_margin":97.85},{"client":"SANSA","revenue":515199.39,"gross_profit":-247629.85,"gp_margin":-48.06,"ebitda":-363848.68,"ebitda_margin":-70.62,"forex":-154498.42,"net_profit":-209350.26,"np_margin":-40.63},{"client":"SENTRIEN","revenue":1226180.85,"gross_profit":167124.33,"gp_margin":13.63,"ebitda":116842.52,"ebitda_margin":9.53,"forex":-82458.27,"net_profit":199300.79,"np_margin":16.25},{"client":"SERV OP CO","revenue":0.0,"gross_profit":0.0,"gp_margin":0,"ebitda":-30548.76,"ebitda_margin":0,"forex":0.0,"net_profit":-30548.76,"np_margin":0},{"client":"SHWINCO","revenue":0.0,"gross_profit":-446.43,"gp_margin":0,"ebitda":-446.43,"ebitda_margin":0,"forex":0.0,"net_profit":-446.43,"np_margin":0},{"client":"SILK LETTER","revenue":0.0,"gross_profit":-40835.43,"gp_margin":0,"ebitda":-40835.43,"ebitda_margin":0,"forex":-10571.2,"net_profit":-30264.23,"np_margin":0},{"client":"SOLAR","revenue":1174173.35,"gross_profit":266155.89,"gp_margin":22.67,"ebitda":215874.08,"ebitda_margin":18.39,"forex":-111485.24,"net_profit":327359.32,"np_margin":27.88},{"client":"SOLUTIONS CLOUD","revenue":5507167.96,"gross_profit":1476523.99,"gp_margin":26.81,"ebitda":1103507.47,"ebitda_margin":20.04,"forex":-487621.13,"net_profit":1591128.6,"np_margin":28.89},{"client":"SOULSTICE","revenue":1059271.9,"gross_profit":346298.22,"gp_margin":32.69,"ebitda":-20531.89,"ebitda_margin":-1.94,"forex":-93378.9,"net_profit":72847.01,"np_margin":6.88},{"client":"STARIA","revenue":23384618.18,"gross_profit":3177613.46,"gp_margin":13.59,"ebitda":2387830.96,"ebitda_margin":10.21,"forex":-4575575.46,"net_profit":6963406.42,"np_margin":29.78},{"client":"SUREVISION","revenue":676130.68,"gross_profit":212191.26,"gp_margin":31.38,"ebitda":132233.5,"ebitda_margin":19.56,"forex":-54156.85,"net_profit":186390.35,"np_margin":27.57},{"client":"TACTIV","revenue":5752537.61,"gross_profit":1035401.17,"gp_margin":18.0,"ebitda":876901.23,"ebitda_margin":15.24,"forex":-910864.47,"net_profit":1787765.7,"np_margin":31.08},{"client":"TGI","revenue":7787816.24,"gross_profit":-343965.62,"gp_margin":-4.42,"ebitda":-1382522.57,"ebitda_margin":-17.75,"forex":-481898.06,"net_profit":-900624.51,"np_margin":-11.56},{"client":"TIGO","revenue":1490379.91,"gross_profit":407356.95,"gp_margin":27.33,"ebitda":353047.2,"ebitda_margin":23.69,"forex":-144208.26,"net_profit":497255.46,"np_margin":33.36},{"client":"TOAST","revenue":14026.72,"gross_profit":4119.22,"gp_margin":29.37,"ebitda":4119.22,"ebitda_margin":29.37,"forex":815.54,"net_profit":3303.68,"np_margin":23.55},{"client":"TRUSTEE","revenue":196561.23,"gross_profit":196561.23,"gp_margin":100.0,"ebitda":-13126.72,"ebitda_margin":-6.68,"forex":-11409.35,"net_profit":-1717.37,"np_margin":-0.87},{"client":"TUI","revenue":203388.71,"gross_profit":37367.26,"gp_margin":18.37,"ebitda":-50863.84,"ebitda_margin":-25.01,"forex":-9666.6,"net_profit":-41197.24,"np_margin":-20.26},{"client":"ULTIMO","revenue":1659592.69,"gross_profit":342350.86,"gp_margin":20.63,"ebitda":249100.39,"ebitda_margin":15.01,"forex":-316505.55,"net_profit":565605.94,"np_margin":34.08},{"client":"VARESE","revenue":904012.71,"gross_profit":404404.31,"gp_margin":44.73,"ebitda":317367.69,"ebitda_margin":35.11,"forex":-47689.84,"net_profit":365057.53,"np_margin":40.38},{"client":"VTSI","revenue":198022.09,"gross_profit":40477.4,"gp_margin":20.44,"ebitda":30578.25,"ebitda_margin":15.44,"forex":-32774.94,"net_profit":63353.19,"np_margin":31.99},{"client":"WORKLOCKER","revenue":2645078.37,"gross_profit":518040.35,"gp_margin":19.59,"ebitda":-37466.97,"ebitda_margin":-1.42,"forex":-615660.95,"net_profit":578193.98,"np_margin":21.86},{"client":"ZONE AND CO","revenue":3594691.36,"gross_profit":1176566.66,"gp_margin":32.73,"ebitda":1056610.63,"ebitda_margin":29.39,"forex":-167539.73,"net_profit":1224150.36,"np_margin":34.05}];
+
+const HC_MONTHS=['Dec-24','Jan-25','Feb-25','Mar-25','Apr-25','May-25','Jun-25','Jul-25','Aug-25','Sep-25','Oct-25','Nov-25','Dec-25','Jan-26','Feb-26','Mar-26','Apr-26','May-26'];
+const HC_RAW=[
+  {name:'KIT',tag:'Declining',hc:[49,49,49,46,46,46,47,47,45,45,45,44,44,43,43,43,42,41]},
+  {name:'STARIA',tag:'Stable',hc:[21,21,20,20,19,19,19,14,14,13,13,13,14,14,14,15,14,14]},
+  {name:'BPM',tag:'Dormant',hc:[15,15,15,15,15,17,17,17,17,17,17,17,17,17,17,17,17,17]},
+  {name:'MACROFIN',tag:'Growing',hc:[15,15,15,15,16,15,16,15,16,20,23,24,23,24,25,25,28,28]},
+  {name:'EKWANI',tag:'Stable',hc:[17,17,17,17,17,17,17,17,17,16,16,16,16,15,15,15,16,15]},
+  {name:'BRING IT',tag:'Declining',hc:[13,13,13,12,12,12,12,12,12,12,12,12,12,12,12,11,11,11]},
+  {name:'AVANO',tag:'Dormant',hc:[19,19,19,19,19,19,19,19,18,18,18,18,18,18,16,16,16,16]},
+  {name:'MOLLIE',tag:'Stable',hc:[6,9,7,8,9,10,9,9,9,10,9,12,11,9,9,9,9,9]},
+  {name:'MOSS ADAM',tag:'Dormant',hc:[5,5,5,5,5,5,5,5,5,5,5,5,5,5,4,4,4,4]},
+  {name:'DTSANZ',tag:'Declining',hc:[7,7,7,7,7,7,7,7,7,6,5,5,5,5,5,5,5,5]},
+  {name:'ONLINEONE',tag:'Declining',hc:[10,10,9,9,9,9,9,8,7,8,8,8,8,7,7,7,7,7]},
+  {name:'ELIVE',tag:'Dormant',hc:[8,8,8,7,7,7,7,7,6,6,6,6,6,6,6,6,6,6]},
+  {name:'BRIGHTFIN',tag:'Growing',hc:[9,9,9,9,10,10,9,9,10,10,10,10,10,10,11,12,12,13]},
+  {name:'DYNED',tag:'Dormant',hc:[5,5,5,5,5,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  {name:'CLOUD CULTURE',tag:'Dormant',hc:[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},
+  {name:'NUAGE',tag:'Growing',hc:[12,13,14,14,16,16,16,16,17,17,17,17,18,18,19,21,21,21]},
+  {name:'SENTRIEN',tag:'Dormant',hc:[2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  {name:'CIRRUS ERP',tag:'Stable',hc:[3,2,2,2,2,2,2,2,2,2,2,3,3,3,3,2,2,3]},
+  {name:'SOLAR',tag:'Dormant',hc:[3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},
+  {name:'SILK LETTER',tag:'Lost Client',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0]},
+  {name:'SUREVISION',tag:'Dormant',hc:[3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},
+  {name:'BLUEBRIDGE ONE',tag:'Dormant',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  {name:'LANDMARK',tag:'Dormant',hc:[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]},
+  {name:'NET AT WORK',tag:'Dormant',hc:[2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  {name:'PLAYQ',tag:'Dormant',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  {name:'LAYER3',tag:'Dormant',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  {name:'SOLUTIONS CLOUD',tag:'Growing',hc:[2,2,3,3,3,3,3,4,4,3,3,4,5,5,5,6,6,7]},
+  {name:'TACTIV',tag:'Dormant',hc:[6,6,7,7,7,7,7,7,7,7,7,6,6,6,6,6,6,6]},
+  {name:'VTSI',tag:'Dormant',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0]},
+  {name:'BEPOZ',tag:'Growing',hc:[39,44,47,53,54,60,64,66,70,71,71,86,89,95,94,94,98,112]},
+  {name:'OSI DIGITAL',tag:'Growing',hc:[18,21,22,21,22,22,22,24,24,24,24,24,24,26,26,28,32,32]},
+  {name:'PALLADIUM',tag:'Stable',hc:[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3]},
+  {name:'ONE DEGREE',tag:'Stable',hc:[3,3,4,4,4,4,4,4,4,3,3,3,3,3,3,3,3,3]},
+  {name:'VARESE',tag:'Dormant',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  {name:'311 CLOUD',tag:'Lost Client',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0]},
+  {name:'BLUECOLLAR',tag:'Stable',hc:[2,2,2,6,7,8,9,9,9,9,12,12,12,11,13,13,12,12]},
+  {name:'TIGO',tag:'Dormant',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  {name:'BEZOS AI',tag:'Declining',hc:[3,2,3,2,2,2,2,1,1,1,1,1,1,2,2,2,2,1]},
+  {name:'MODULO',tag:'Stable',hc:[1,1,1,1,2,2,2,2,3,3,3,3,3,4,4,4,4,4]},
+  {name:'ZONE AND CO',tag:'Lost Client',hc:[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1,0,0]},
+  {name:'NETGAIN',tag:'Growing',hc:[7,9,12,13,15,15,16,16,16,16,16,19,21,28,27,28,30,31]},
+  {name:'GOLD BOND',tag:'Dormant',hc:[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  {name:'KLUGO',tag:'Declining',hc:[0,1,4,5,5,5,5,6,6,6,7,6,6,3,3,2,2,2]},
+  {name:'NET LOBSTER',tag:'Stable',hc:[0,1,1,1,1,0,1,1,2,2,2,2,2,2,2,3,3,3]},
+  {name:'ASG',tag:'Declining',hc:[0,0,3,4,7,6,6,6,5,3,3,3,3,3,1,1,1,1]},
+  {name:'TGI',tag:'Declining',hc:[0,0,4,5,5,7,7,7,7,7,18,24,25,25,25,25,7,7]},
+  {name:'KIMBERLITE',tag:'Dormant',hc:[0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  {name:'PEXAPARK',tag:'Stable',hc:[0,0,0,0,1,1,1,1,1,2,2,3,3,3,4,4,4,4]},
+  {name:'EXILE',tag:'Dormant',hc:[0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,1]},
+  {name:'WORKLOCKER',tag:'Dormant',hc:[0,0,0,0,0,1,2,2,2,2,2,3,3,3,3,3,3,3]},
+  {name:'ULTIMO',tag:'Dormant',hc:[0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,2,2]},
+  {name:'MERSIVE',tag:'Lost Client',hc:[0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0]},
+  {name:'PRITAM',tag:'Lost Client',hc:[0,0,0,0,0,0,0,0,0,2,2,2,2,2,0,0,0,0]},
+  {name:'ASHOKAN',tag:'Stable',hc:[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1]},
+  {name:'SANSA',tag:'Lost Client',hc:[0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,0]},
+  {name:'MAAS ENERGY',tag:'Stable',hc:[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1]},
+  {name:'APHOBOS',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0]},
+  {name:'GOLF SWAG',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1]},
+  {name:'SOULSTICE',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,2]},
+  {name:'PRIMARY',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1]},
+  {name:'BOARD INTERNATIONAL',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1]},
+  {name:'FLEXXUS',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1]},
+  {name:'TUI',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]},
+];
+
+const HC_MAP={};
+HC_RAW.forEach(r=>HC_MAP[r.name]=r);
+function getHC(n){return HC_MAP[n]||null;}
+function currentFTE(n){const r=getHC(n);return r?r.hc[HC_MONTHS.length-1]:null;}
+function hcTagClass(tag){
+  const t=(tag||'').toLowerCase();
+  if(t==='growing')return'growing';if(t==='declining')return'declining';
+  if(t==='lost client')return'lost';if(t==='stable')return'stable';
+  if(t==='new client')return'new';return'dormant';
+}
+function hcTagLabel(tag){return tag||'—';}
+
+const CLIENT_NOTES={};
+
+// ── Helpers ──
+function fmt(v){const a=Math.abs(v);if(a>=1e9)return(v<0?'-':'')+'₱'+(a/1e9).toFixed(1)+'B';if(a>=1e6)return(v<0?'-':'')+'₱'+(a/1e6).toFixed(1)+'M';if(a>=1e3)return(v<0?'-':'')+'₱'+(a/1e3).toFixed(0)+'K';return(v<0?'-':'')+'₱'+a.toFixed(0);}
+function fmtFull(v){return(v<0?'-₱':'₱')+Math.abs(v).toLocaleString('en-PH',{maximumFractionDigits:0});}
+function fmtPct(v){return(v>0?'+':'')+v.toFixed(1)+'%';}
+function pillPct(v){const c=v>=20?'pos':v>=0?'warn':'neg';return`<span class="pill ${c}">${fmtPct(v)}</span>`;}
+function actionFlags(d){
+  const f=[];
+  if(d.revenue>0&&d.ebitda_margin<5)f.push({label:'Review OPEX',cls:'opex'});
+  if(d.revenue>0&&Math.abs(d.forex)>d.ebitda*0.5&&d.ebitda>0)f.push({label:'FOREX hedge needed',cls:'forex'});
+  if(d.revenue>0&&d.gp_margin>30&&d.ebitda_margin<15)f.push({label:'OPEX optimisation',cls:'opex'});
+  if(d.revenue>0&&d.gp_margin>35&&d.np_margin>20)f.push({label:'Upsell opportunity',cls:'upsell'});
+  if(d.revenue>0&&d.ebitda<0)f.push({label:'Needs review',cls:'review'});
+  return f;
+}
+
+let ENRICHED=RAW_DATA.map(d=>({...d,flags:actionFlags(d)}));
+let DATA=ENRICHED.slice();
+
+function applyFilters(){
+  const s=document.getElementById('searchInput').value.toLowerCase();
+  DATA=ENRICHED.filter(d=>!s||d.client.toLowerCase().includes(s));
+  updateKPIs();buildOverviewCharts();buildAtRisk();buildConcentrationWarning();
+  // refresh whichever tab is active
+  const active=document.querySelector('.page.active');
+  if(active){
+    const id=active.id;
+    if(id==='page-overview'){buildOverviewCharts();}
+    if(id==='page-profitability'){buildProfitCharts();renderTop10('gp');}    if(id==='page-clients')renderFullTable();
+    if(id==='page-atrisk')renderAtRiskFull();
+    if(id==='page-insights')buildInsights();
+  }
+}
+
+// ── KPIs ──
+function updateKPIs(){
+  const rev=DATA.reduce((a,x)=>a+x.revenue,0);
+  const gp=DATA.reduce((a,x)=>a+x.gross_profit,0);
+  const eb=DATA.reduce((a,x)=>a+x.ebitda,0);
+  const np=DATA.reduce((a,x)=>a+x.net_profit,0);
+  const fx=DATA.reduce((a,x)=>a+x.forex,0);
+  document.getElementById('kpiRev').textContent=fmt(rev);
+  document.getElementById('kpiGP').textContent=fmt(gp);
+  document.getElementById('kpiGPM').textContent=rev?((gp/rev)*100).toFixed(1)+'%':'—';
+  document.getElementById('kpiEB').textContent=fmt(eb);
+  document.getElementById('kpiEBM').textContent=rev?((eb/rev)*100).toFixed(1)+'%':'—';
+  document.getElementById('kpiNP').textContent=fmt(np);
+  document.getElementById('kpiNPM').textContent=rev?((np/rev)*100).toFixed(1)+'%':'—';
+  document.getElementById('kpiFX').textContent=fmt(Math.abs(fx));
+}
+
+// ── At-Risk ──
+function buildAtRisk(){
+  const ar=DATA.filter(d=>d.revenue>0&&d.ebitda<0).sort((a,b)=>a.ebitda-b.ebitda);
+  const el=document.getElementById('atRiskBanner');
+  const cnt=document.getElementById('atRiskCount');
+  if(cnt)cnt.textContent=ar.length||'—';
+  if(!ar.length){el.style.display='none';return;}
+  el.style.display='';
+  document.getElementById('atRiskCards').innerHTML=ar.slice(0,6).map(d=>`
+    <div class="alert-card" onclick="openModal('${d.client}')">
+      <div class="ac-client">${d.client}</div>
+      <div class="ac-reason">${d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ')}</div>
+      <div class="ac-metrics">Rev: ${fmt(d.revenue)} · EBITDA: <span style="color:var(--red);font-weight:700">${fmt(d.ebitda)}</span> · GP%: ${d.gp_margin.toFixed(1)}%</div>
+    </div>`).join('');
+}
+
+function renderAtRiskFull(){
+  const ar=DATA.filter(d=>d.revenue>0&&d.ebitda<0).sort((a,b)=>a.ebitda-b.ebitda);
+  let html=`<table><thead><tr><th>Client</th><th class="r">Revenue</th><th class="r">Gross Profit</th><th class="r">GP%</th><th class="r">EBITDA</th><th class="r">EBITDA%</th><th class="r">Net Profit</th><th>Action Flags</th></tr></thead><tbody>`;
+  ar.forEach(d=>{
+    const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
+    html+=`<tr onclick="openModal('${d.client}')"><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="color:${d.gross_profit<0?'var(--red)':'inherit'}">${fmt(d.gross_profit)}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r" style="color:var(--red);font-weight:700">${fmt(d.ebitda)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r" style="color:${d.net_profit<0?'var(--red)':'inherit'}">${fmt(d.net_profit)}</td><td>${flags||'—'}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  document.getElementById('atRiskFullTable').innerHTML=html;
+}
+
+// ── Concentration ──
+function buildConcentrationWarning(){
+  const active=DATA.filter(d=>d.revenue>0);
+  const totalRev=active.reduce((a,x)=>a+x.revenue,0);
+  const top3=[...active].sort((a,b)=>b.revenue-a.revenue).slice(0,3);
+  const top3pct=top3.reduce((a,x)=>a+x.revenue,0)/totalRev*100;
+  const top1pct=top3[0]?top3[0].revenue/totalRev*100:0;
+  const el=document.getElementById('concWarning');
+  if(top1pct>20||top3pct>50){
+    el.style.display='';
+    document.getElementById('concContent').innerHTML=`Top 3 clients contribute <strong>${top3pct.toFixed(1)}%</strong> of total revenue. ${top1pct>20?`<strong>${top3[0].client}</strong> alone = <strong>${top1pct.toFixed(1)}%</strong>.`:''} ${top3.map(d=>`<strong>${d.client}</strong>: ${fmt(d.revenue)} (${(d.revenue/totalRev*100).toFixed(1)}%)`).join(' · ')}`;
+  }else el.style.display='none';
+}
+
+// ── Charts ──
+const charts={};
+function buildOverviewCharts(){
+  renderTop15HC();
+  renderOverviewTop10('gp');
+}
+
+function showOverviewTop10(metric,btn){
+  document.querySelectorAll('#overviewTop10Tabs .tab-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderOverviewTop10(metric);
+}
+
+function renderOverviewTop10(metric){
+  const keyMap={gp:'gross_profit',ebitda:'ebitda',np:'net_profit'};
+  const lblMap={gp:'Gross Profit',ebitda:'EBITDA',np:'Net Profit'};
+  const mKey=keyMap[metric];
+  const sorted=[...DATA].sort((a,b)=>b[mKey]-a[mKey]).slice(0,10);
+  let html=`<table><thead><tr><th>#</th><th>Client</th><th class="r">Revenue</th><th class="r">${lblMap[metric]}</th><th class="r">GP%</th><th class="r">EBITDA%</th><th class="r">NP%</th><th>Flags</th></tr></thead><tbody>`;
+  sorted.forEach((d,i)=>{
+    const rc=i===0?'g':i===1?'s':i===2?'b':'';
+    const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
+    html+=`<tr onclick="openModal('${d.client}')"><td><span class="rank ${rc}">${i+1}</span></td><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="font-weight:700;color:${d[mKey]<0?'var(--red)':'var(--green)'}">${fmtFull(d[mKey])}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r">${pillPct(d.np_margin)}</td><td>${flags||'—'}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  const wrap=document.getElementById('overviewTop10Wrap');
+  if(wrap)wrap.innerHTML=html;
+}
+
+function renderTop15HC(){
+  const lastIdx=HC_MONTHS.length-1;
+  const top10=[...HC_RAW].sort((a,b)=>(b.hc[lastIdx]||0)-(a.hc[lastIdx]||0)).slice(0,10);
+  const prevIdx=Math.max(0,lastIdx-1);
+  const sixMoIdx=Math.max(0,lastIdx-6);
+  let html=`<table><thead><tr>
+    <th>#</th><th>Client</th><th class="c">HC Status</th>
+    <th class="c" style="background:#e0f0d0">${HC_MONTHS[lastIdx]} (Current)</th>
+    <th class="c">${HC_MONTHS[prevIdx]}</th>
+    <th class="c">MoM Δ</th><th class="c">6-Mo Δ</th>
+    <th>Trend</th>
+    <th class="r">Revenue</th><th class="r">GP%</th><th class="r">NP%</th>
+  </tr></thead><tbody>`;
+  top10.forEach((r,i)=>{
+    const cur=r.hc[lastIdx]||0;
+    const prev=r.hc[prevIdx]||0;
+    const sixMoAgo=r.hc[sixMoIdx]||0;
+    const mom=cur-prev, sixmo=cur-sixMoAgo;
+    const rc=i===0?'g':i===1?'s':i===2?'b':'';
+    const pd=ENRICHED.find(x=>x.client===r.name);
+    html+=`<tr onclick="openModal('${r.name.replace(/'/g,"\\'")}')">
+      <td><span class="rank ${rc}">${i+1}</span></td>
+      <td><strong>${r.name}</strong></td>
+      <td class="c"><span class="hc-tag ${hcTagClass(r.tag)}">${r.tag}</span></td>
+      <td class="c" style="font-weight:700;background:#f4fbee">${cur}</td>
+      <td class="c">${prev}</td>
+      <td class="c" style="color:${mom>0?'var(--green)':mom<0?'var(--red)':'var(--muted)'};font-weight:700">${mom>0?'+':''}${mom}</td>
+      <td class="c" style="color:${sixmo>0?'var(--green)':sixmo<0?'var(--red)':'var(--muted)'};font-weight:700">${sixmo>0?'+':''}${sixmo}</td>
+      <td>${sparkSVG(r.hc)}</td>
+      <td class="r">${pd?fmt(pd.revenue):'—'}</td>
+      <td class="r">${pd?pillPct(pd.gp_margin):'—'}</td>
+      <td class="r">${pd?pillPct(pd.np_margin):'—'}</td>
+    </tr>`;
+  });
+  html+='</tbody></table>';
+  const wrap=document.getElementById('top15HCTableWrap');
+  if(wrap)wrap.innerHTML=html;
+}
+
+function buildProfitCharts(){
+  const top15=DATA.filter(d=>d.revenue>0).sort((a,b)=>b.revenue-a.revenue).slice(0,15);
+  const lbl=top15.map(d=>d.client.length>9?d.client.slice(0,9)+'…':d.client);
+  const G='#1a5c28',LG='#7abe7a',RED='#e04a4a',AMB='#f0a020';
+
+  if(charts.c1)charts.c1.destroy();
+  charts.c1=new Chart(document.getElementById('cRevGP'),{type:'bar',data:{labels:lbl,datasets:[
+    {label:'Revenue',data:top15.map(d=>d.revenue),backgroundColor:'#c0dca0',borderColor:'#7abe7a',borderWidth:1},
+    {label:'Gross Profit',data:top15.map(d=>d.gross_profit),backgroundColor:G,borderColor:'#0d3a18',borderWidth:1}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},scales:{x:{ticks:{font:{size:10},maxRotation:45,autoSkip:false}},y:{ticks:{callback:v=>fmt(v)},grid:{color:'#e8f5e0'}}}}});
+
+  if(charts.c3)charts.c3.destroy();
+  charts.c3=new Chart(document.getElementById('cEBNP'),{type:'bar',data:{labels:lbl,datasets:[
+    {label:'EBITDA',data:top15.map(d=>d.ebitda),backgroundColor:LG,borderColor:G,borderWidth:1},
+    {label:'Net Profit',data:top15.map(d=>d.net_profit),backgroundColor:top15.map(d=>d.net_profit>=0?'#0d3a18':RED),borderWidth:0}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},scales:{x:{ticks:{font:{size:10},maxRotation:45,autoSkip:false}},y:{ticks:{callback:v=>fmt(v)},grid:{color:'#e8f5e0'}}}}});
+
+  if(charts.c4)charts.c4.destroy();
+  charts.c4=new Chart(document.getElementById('cGPM'),{type:'bar',data:{labels:lbl,datasets:[{label:'GP Margin %',data:top15.map(d=>d.gp_margin),backgroundColor:top15.map(d=>d.gp_margin>=30?G:d.gp_margin>=15?AMB:RED),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw.toFixed(1)+'%'}}},scales:{x:{ticks:{font:{size:10},maxRotation:45,autoSkip:false}},y:{ticks:{callback:v=>v+'%'},grid:{color:'#e8f5e0'}}}}});
+}
+
+// ── Top 10 ──
+function showTop10(metric,btn){
+  document.querySelectorAll('#page-profitability .tab-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderTop10(metric);
+}
+function renderTop10(metric){
+  const keyMap={gp:'gross_profit',ebitda:'ebitda',np:'net_profit'};
+  const lblMap={gp:'Gross Profit',ebitda:'EBITDA',np:'Net Profit'};
+  const mKey=keyMap[metric];
+  const sorted=[...DATA].sort((a,b)=>b[mKey]-a[mKey]).slice(0,10);
+  let html=`<table><thead><tr><th>#</th><th>Client</th><th class="r">Revenue</th><th class="r">${lblMap[metric]}</th><th class="r">GP%</th><th class="r">EBITDA%</th><th class="r">NP%</th><th>Flags</th></tr></thead><tbody>`;
+  sorted.forEach((d,i)=>{
+    const rc=i===0?'g':i===1?'s':i===2?'b':'';
+    const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
+    html+=`<tr onclick="openModal('${d.client}')"><td><span class="rank ${rc}">${i+1}</span></td><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="font-weight:700;color:${d[mKey]<0?'var(--red)':'var(--green)'}">${fmtFull(d[mKey])}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r">${pillPct(d.np_margin)}</td><td>${flags||'—'}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  document.getElementById('top10TableWrap').innerHTML=html;
+}
+
+// ── Sparkline ──
+function sparkSVG(hcArr){
+  if(!hcArr)return'<span style="color:#aaa;font-size:10px">—</span>';
+  const vals=hcArr.slice(-12);const max=Math.max(...vals,1);const w=72,h=22;
+  const pts=vals.map((v,i)=>`${((i/(vals.length-1))*w).toFixed(1)},${(h-((v/max)*h*0.85+2)).toFixed(1)}`).join(' ');
+  return`<svg width="${w}" height="${h}"><polyline points="${pts}" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+}
+
+// ── Full Table ──
+function renderFullTable(){
+  const sortKey=document.getElementById('sortSel').value;
+  const sorted=[...DATA].sort((a,b)=>b[sortKey]-a[sortKey]);
+  let html=`<table id="allClientsTable"><thead><tr><th>Client</th><th class="r">Revenue</th><th class="r">Gross Profit</th><th class="r">GP%</th><th class="r">EBITDA</th><th class="r">EBITDA%</th><th class="r">FX Gain</th><th class="r">Net Profit</th><th class="r">NP%</th><th class="c">FTE</th><th class="c">HC Trend</th><th class="c">HC Status</th><th>Flags</th></tr></thead><tbody>`;
+  sorted.forEach(d=>{
+    const hc=getHC(d.client);const fte=hc?hc.hc[HC_MONTHS.length-1]:null;
+    const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
+    html+=`<tr onclick="openModal('${d.client}')"><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="color:${d.gross_profit<0?'var(--red)':'inherit'}">${fmt(d.gross_profit)}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r" style="color:${d.ebitda<0?'var(--red)':'inherit'}">${fmt(d.ebitda)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r" style="color:var(--blue)">${fmt(Math.abs(d.forex))}</td><td class="r" style="color:${d.net_profit<0?'var(--red)':'inherit'};font-weight:700">${fmt(d.net_profit)}</td><td class="r">${pillPct(d.np_margin)}</td><td class="c" style="font-weight:700">${fte!==null?fte:'—'}</td><td class="c">${sparkSVG(hc?hc.hc:null)}</td><td class="c">${hc?`<span class="hc-tag ${hcTagClass(hc.tag)}">${hcTagLabel(hc.tag)}</span>`:'—'}</td><td>${flags||'—'}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  document.getElementById('fullTableWrap').innerHTML=html;
+  // Sync top scrollbar width to actual table width
+  requestAnimationFrame(()=>{
+    const tbl=document.getElementById('allClientsTable');
+    const topInner=document.getElementById('allScrollTopInner');
+    if(tbl&&topInner)topInner.style.width=tbl.scrollWidth+'px';
+  });
+}
+
+// ── HC Section ──
+let hcFilter='all';
+function filterHC(tag,btn){
+  hcFilter=tag;
+  document.querySelectorAll('#page-headcount .tab-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderHCTable();
+}
+
+function buildHCSection(){
+  const lastIdx=HC_MONTHS.length-1;
+  const prevIdx=Math.max(0,lastIdx-1);
+  const total=HC_RAW.reduce((a,r)=>a+(r.hc[lastIdx]||0),0);
+  const prev=HC_RAW.reduce((a,r)=>a+(r.hc[prevIdx]||0),0);
+  const diff=total-prev;
+  document.getElementById('hcTotal').textContent=total;
+  document.getElementById('hcChange').textContent=(diff>=0?'+':'')+diff+' vs '+HC_MONTHS[prevIdx]+' ('+prev+')';
+  document.getElementById('hcGrowing').textContent=HC_RAW.filter(r=>r.tag==='Growing').length;
+  document.getElementById('hcDeclining').textContent=HC_RAW.filter(r=>r.tag==='Declining').length;
+  document.getElementById('hcDormant').textContent=HC_RAW.filter(r=>r.tag==='Dormant'||r.tag==='Stable').length;
+  document.getElementById('hcLost').textContent=HC_RAW.filter(r=>r.tag==='Lost Client').length;
+  // Update chart card title dynamically with actual month range
+  const trendTitle=document.querySelector('#page-headcount .charts-grid .card:first-child .card-title .left, #page-headcount div[style*="grid"] .card:first-child .card-title .left');
+  if(trendTitle)trendTitle.textContent=`Portfolio FTE Trend — ${HC_MONTHS[0]} to ${HC_MONTHS[lastIdx]}`;
+
+  const portfolioTrend=HC_MONTHS.map((_,mi)=>HC_RAW.reduce((a,r)=>a+(r.hc[mi]||0),0));
+  if(charts.hcTrend)charts.hcTrend.destroy();
+  charts.hcTrend=new Chart(document.getElementById('cHCTrend'),{type:'line',data:{labels:HC_MONTHS,datasets:[{label:'Total FTEs',data:portfolioTrend,borderColor:'#1a5c28',backgroundColor:'rgba(26,92,40,0.08)',borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#1a5c28',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'FTEs: '+ctx.raw}}},scales:{x:{ticks:{font:{size:9},maxRotation:45}},y:{ticks:{stepSize:50},grid:{color:'#e8f5e0'}}}}});
+
+  const top15HC=[...HC_RAW].sort((a,b)=>(b.hc[lastIdx]||0)-(a.hc[lastIdx]||0)).slice(0,15);
+  const hcColors=top15HC.map(r=>r.tag==='Growing'?'#1a5c28':r.tag==='Declining'?'#e04a4a':r.tag==='Lost Client'?'#800000':r.tag==='Stable'?'#f0a020':r.tag==='new client'?'#1a5aaa':'#9abf7a');
+  if(charts.hcBar)charts.hcBar.destroy();
+  charts.hcBar=new Chart(document.getElementById('cHCBar'),{type:'bar',data:{labels:top15HC.map(r=>r.name.length>10?r.name.slice(0,10)+'…':r.name),datasets:[{label:'FTEs',data:top15HC.map(r=>r.hc[lastIdx]||0),backgroundColor:hcColors,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw+' FTEs'}}},scales:{x:{grid:{color:'#e8f5e0'}},y:{ticks:{font:{size:10}}}}}});
+
+  renderHCTable();
+}
+
+// ── HC scroll sync ──
+function syncHCScroll(src, targetId){
+  const target=document.getElementById(targetId);
+  if(target)target.scrollLeft=src.scrollLeft;
+}
+// Generic scroll sync for any table with mirrored top scrollbar
+function syncScroll(src, targetId){
+  const target=document.getElementById(targetId);
+  if(target)target.scrollLeft=src.scrollLeft;
+}
+
+function renderHCTable(){
+  const lastIdx=HC_MONTHS.length-1;
+  const prevIdx=Math.max(0,lastIdx-1);
+  const sixMoIdx=Math.max(0,lastIdx-6);
+  let rows=hcFilter==='all'?HC_RAW:HC_RAW.filter(r=>r.tag===hcFilter);
+  rows=[...rows].sort((a,b)=>(b.hc[lastIdx]||0)-(a.hc[lastIdx]||0));
+  const mHeaders=HC_MONTHS.map((m,i)=>`<th class="c" style="${i===lastIdx?'background:#e0f0d0;':''}">${m}</th>`).join('');
+  let html=`<table id="hcMainTable"><thead><tr><th style="position:sticky;left:0;background:#e4f2d8;z-index:1;min-width:155px">Client</th><th class="c" style="position:sticky;left:155px;background:#e4f2d8;z-index:1">Status</th>${mHeaders}<th class="c">MoM Δ</th><th class="c">6-Mo Δ</th><th style="min-width:80px">Trend</th><th class="r">Revenue</th><th class="r">NP%</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const cur=r.hc[lastIdx]||0,prev=r.hc[prevIdx]||0,sixMoAgo=r.hc[sixMoIdx]||0;
+    const mom=cur-prev,sixmo=cur-sixMoAgo;
+    const pd=ENRICHED.find(x=>x.client===r.name);
+    const monthCells=HC_MONTHS.map((m,i)=>`<td class="c" style="${i===lastIdx?'font-weight:700;background:#f4fbee;':''}">${r.hc[i]!==undefined?r.hc[i]:0}</td>`).join('');
+    html+=`<tr onclick="openModal('${r.name.replace(/'/g,"\\'")}')"><td style="position:sticky;left:0;background:#fff;z-index:1"><strong>${r.name}</strong></td><td class="c" style="position:sticky;left:155px;background:#fff;z-index:1"><span class="hc-tag ${hcTagClass(r.tag)}">${r.tag}</span></td>${monthCells}<td class="c" style="color:${mom>0?'var(--green)':mom<0?'var(--red)':'var(--muted)'};font-weight:700">${mom>0?'+':''}${mom}</td><td class="c" style="color:${sixmo>0?'var(--green)':sixmo<0?'var(--red)':'var(--muted)'};font-weight:700">${sixmo>0?'+':''}${sixmo}</td><td>${sparkSVG(r.hc)}</td><td class="r">${pd?fmt(pd.revenue):'—'}</td><td class="r">${pd?pillPct(pd.np_margin):'—'}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  document.getElementById('hcTableWrap').innerHTML=html;
+  // Sync top scrollbar width to actual table width
+  requestAnimationFrame(()=>{
+    const tbl=document.getElementById('hcMainTable');
+    const topInner=document.getElementById('hcScrollTopInner');
+    if(tbl&&topInner)topInner.style.width=tbl.scrollWidth+'px';
+  });
+}
+
+// ── Insights ──
+function buildInsights(){
+  const d=DATA,active=d.filter(x=>x.revenue>0);
+  const totalRev=active.reduce((a,x)=>a+x.revenue,0);
+  const totalGP=d.reduce((a,x)=>a+x.gross_profit,0);
+  const totalEB=d.reduce((a,x)=>a+x.ebitda,0);
+  const totalNP=d.reduce((a,x)=>a+x.net_profit,0);
+  const totalFX=d.reduce((a,x)=>a+x.forex,0);
+  const atRisk=d.filter(x=>x.ebitda<0&&x.revenue>0);
+  const top3NP=[...d].sort((a,b)=>b.net_profit-a.net_profit).slice(0,3);
+  const top3Rev=[...active].sort((a,b)=>b.revenue-a.revenue).slice(0,3);
+  const upsell=d.filter(x=>x.flags.some(f=>f.label==='Upsell opportunity'));
+  const fxDep=d.filter(x=>x.ebitda<0&&x.net_profit>0);
+  const ins=[
+    {t:'green',icon:'🏆',title:'Top 3 net profit contributors',body:`${top3NP.map(x=>`<strong>${x.client}</strong> (${fmt(x.net_profit)}, ${x.np_margin.toFixed(1)}% NP)`).join(', ')}. These three account for ${((top3NP.reduce((a,x)=>a+x.net_profit,0)/totalNP)*100).toFixed(0)}% of total net profit.`},
+    {t:'blue',icon:'💱',title:'FX gains are adding significant value',body:`Realised currency gains of <strong>${fmt(Math.abs(totalFX))}</strong> boosted the portfolio from EBITDA of ${fmt(totalEB)} to net profit of ${fmt(totalNP)} — a <strong>${(Math.abs(totalFX)/Math.abs(totalEB)*100).toFixed(0)}% uplift</strong>. Largest FX contributors: ${[...d].sort((a,b)=>a.forex-b.forex).slice(0,3).map(x=>`${x.client} (${fmt(Math.abs(x.forex))})`).join(', ')}.`},
+    {t:'amber',icon:'⚠️',title:`${atRisk.length} active clients have negative EBITDA`,body:`Operating costs exceed gross profit for: ${atRisk.slice(0,4).map(x=>`<strong>${x.client}</strong> (EBITDA: ${fmt(x.ebitda)}, GP%: ${x.gp_margin.toFixed(1)}%)`).join(', ')}.`},
+    {t:'amber',icon:'📈',title:`${upsell.length} upsell opportunities flagged`,body:`Strong margins and capacity for expanded scope: ${upsell.map(x=>`<strong>${x.client}</strong> (GP: ${x.gp_margin.toFixed(1)}%, NP: ${x.np_margin.toFixed(1)}%)`).join(', ')}.`},
+    {t:'red',icon:'🔴',title:'Revenue concentration risk',body:`Top 3 clients (${top3Rev.map(x=>x.client).join(', ')}) represent <strong>${(top3Rev.reduce((a,x)=>a+x.revenue,0)/totalRev*100).toFixed(1)}%</strong> of total revenue.`},
+    {t:'amber',icon:'💡',title:`${fxDep.length} client${fxDep.length!==1?'s':''} profitable only due to FX gains`,body:`${fxDep.map(x=>`<strong>${x.client}</strong>`).join(', ')} ${fxDep.length===1?'has':'have'} negative EBITDA but positive net profit due to FX. Underlying business model needs review.`},
+    {t:'blue',icon:'📊',title:'Overall portfolio margins',body:`GP: <strong>${(totalGP/totalRev*100).toFixed(1)}%</strong> · EBITDA: <strong>${(totalEB/totalRev*100).toFixed(1)}%</strong> · Net Profit: <strong>${(totalNP/totalRev*100).toFixed(1)}%</strong>. FX gains (${fmt(Math.abs(totalFX))}) bridge the EBITDA-to-NP gap.`},
+    {t:'green',icon:'✅',title:'High-margin clients to protect',body:`Top 3 by GP margin: ${[...active].sort((a,b)=>b.gp_margin-a.gp_margin).slice(0,3).map(x=>`<strong>${x.client}</strong> (${x.gp_margin.toFixed(1)}% GP, ${fmt(x.revenue)} rev)`).join(', ')}.`}
+  ];
+  document.getElementById('insightsGrid').innerHTML=ins.map(i=>`<div class="ins-card ${i.t}"><h4>${i.icon} ${i.title}</h4><p>${i.body}</p></div>`).join('');
+}
+
+// ── Modal ──
+function openModal(clientName){
+  const d=ENRICHED.find(x=>x.client===clientName);if(!d)return;
+  const note=CLIENT_NOTES[clientName]||'';
+  const maxBar=v=>Math.min(100,Math.max(0,v));
+  const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ')||'<span style="color:#aaa;font-size:11px">No flags</span>';
+  const hc=getHC(clientName);
+  const hcLastIdx=HC_MONTHS.length-1;
+  const fte=hc?hc.hc[hcLastIdx]:null;
+  const ftePrev=hc?hc.hc[Math.max(0,hcLastIdx-1)]:null;
+  const fteMom=fte!==null&&ftePrev!==null?fte-ftePrev:null;
+  const hcSection=hc?`<div style="background:var(--green-pale);border-radius:6px;padding:12px 14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">👥 Headcount & FTE</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px"><div style="text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">Current FTE</div><div style="font-size:18px;font-weight:700;color:var(--green)">${fte}</div></div><div style="text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">MoM Change</div><div style="font-size:18px;font-weight:700;color:${fteMom>0?'var(--green)':fteMom<0?'var(--red)':'var(--muted)'}">${fteMom>0?'+':''}${fteMom}</div></div><div style="text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">Baseline (Dec-24)</div><div style="font-size:18px;font-weight:700;color:#3a5a3a">${hc.hc[0]}</div></div><div style="text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">Status</div><div style="margin-top:4px"><span class="hc-tag ${hcTagClass(hc.tag)}">${hcTagLabel(hc.tag)}</span></div></div></div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:700">FTE Trend (Dec-24 → May-26)</div><div style="display:flex;align-items:flex-end;gap:2px;height:40px">${hc.hc.map((v,i)=>{const maxV=Math.max(...hc.hc,1);const h=Math.max(2,Math.round((v/maxV)*36));return`<div title="${HC_MONTHS[i]}: ${v} FTEs" style="flex:1;height:${h}px;background:${i===hcLastIdx?'var(--green)':'#9abf7a'};border-radius:2px 2px 0 0"></div>`;}).join('')}</div><div style="display:flex;justify-content:space-between;font-size:9px;color:#aaa;margin-top:2px"><span>Dec-24</span><span>May-26</span></div></div>`:'';
+
+  document.getElementById('modal-title').textContent=`${clientName} — Client Profile`;
+  document.getElementById('modal-body').innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap"><span>${flags}</span></div>
+    <div class="modal-kpis">
+      <div class="modal-kpi"><div class="modal-kpi-lbl">Revenue</div><div class="modal-kpi-val">${fmt(d.revenue)}</div></div>
+      <div class="modal-kpi"><div class="modal-kpi-lbl">Gross Profit</div><div class="modal-kpi-val ${d.gross_profit<0?'neg':''}">${fmt(d.gross_profit)}</div></div>
+      <div class="modal-kpi"><div class="modal-kpi-lbl">EBITDA</div><div class="modal-kpi-val ${d.ebitda<0?'neg':''}">${fmt(d.ebitda)}</div></div>
+      <div class="modal-kpi"><div class="modal-kpi-lbl">Net Profit</div><div class="modal-kpi-val ${d.net_profit<0?'neg':''}">${fmt(d.net_profit)}</div></div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="metric-row"><label>GP Margin</label><div class="bar-track"><div class="bar-fill ${d.gp_margin<0?'neg':''}" style="width:${maxBar(d.gp_margin)}%"></div></div><span class="val">${d.gp_margin.toFixed(1)}%</span></div>
+      <div class="metric-row"><label>EBITDA Margin</label><div class="bar-track"><div class="bar-fill ${d.ebitda_margin<0?'neg':''}" style="width:${maxBar(d.ebitda_margin)}%"></div></div><span class="val">${d.ebitda_margin.toFixed(1)}%</span></div>
+      <div class="metric-row"><label>NP Margin</label><div class="bar-track"><div class="bar-fill ${d.np_margin<0?'neg':''}" style="width:${maxBar(d.np_margin)}%"></div></div><span class="val">${d.np_margin.toFixed(1)}%</span></div>
+    </div>
+    <div style="background:var(--green-pale);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:11px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div><span style="color:var(--muted)">FX Gains:</span> <strong style="color:var(--blue)">${fmt(Math.abs(d.forex))}</strong></div>
+      <div><span style="color:var(--muted)">FX as % of EBITDA:</span> <strong>${d.ebitda!==0?(Math.abs(d.forex)/Math.abs(d.ebitda)*100).toFixed(1)+'%':'—'}</strong></div>
+      <div><span style="color:var(--muted)">Net Profit formula:</span> <strong>EBITDA − FOREX gain/loss</strong></div>
+      <div><span style="color:var(--muted)">Revenue (incl. WIP):</span> <strong>${fmtFull(d.revenue)}</strong></div>
+    </div>
+    ${hcSection}
+    <div style="margin-bottom:10px">
+      <label style="font-size:12px;font-weight:700;color:#2d5a2d;display:block;margin-bottom:5px">📝 Notes & Action Items</label>
+      <textarea class="notes-area" id="noteFor_${clientName}" placeholder="Add notes — next steps, QBR talking points, risks…">${note}</textarea>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="print-btn" onclick="saveClientNote('${clientName}')">💾 Save Note</button>
+      <button class="print-btn" style="background:var(--blue)" onclick="printClient('${clientName}')">🖨 Print One-Pager</button>
+      <span id="noteSavedFor_${clientName}" style="font-size:11px;color:var(--green);display:none;align-self:center">✓ Saved</span>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
+function saveClientNote(name){
+  CLIENT_NOTES[name]=document.getElementById('noteFor_'+name).value;
+  // Persist all client notes
+  try{localStorage.setItem('atticus_client_notes',JSON.stringify(CLIENT_NOTES));}catch(e){}
+  const el=document.getElementById('noteSavedFor_'+name);
+  el.style.display='inline';setTimeout(()=>el.style.display='none',2000);
+}
+function printClient(name){
+  const d=ENRICHED.find(x=>x.client===name);const note=CLIENT_NOTES[name]||'';
+  const pw=window.open('','_blank','width=800,height=600');
+  pw.document.write(`<!DOCTYPE html><html><head><title>${name} — One-Pager</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#1a2e1a}h1{font-size:20px;color:#1a5c28;border-bottom:3px solid #1a5c28;padding-bottom:8px;margin-bottom:16px}.grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:20px}.kpi{background:#f0f7eb;border-radius:6px;padding:10px;text-align:center}.kpi-l{font-size:10px;font-weight:700;color:#5a7a5a;text-transform:uppercase}.kpi-v{font-size:18px;font-weight:700;color:#1a5c28;margin-top:4px}table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px}th{background:#e4f2d8;padding:7px 10px;text-align:left;font-weight:700}td{padding:7px 10px;border-bottom:1px solid #e8f5e0}.notes{background:#fffbe6;border:1px solid #f0d060;border-radius:6px;padding:12px;font-size:12px;line-height:1.6}.footer{font-size:10px;color:#aaa;text-align:center;margin-top:24px;border-top:1px solid #eee;padding-top:8px}</style></head><body><h1>Atticus Advisory Solutions — ${name}</h1><p style="font-size:12px;color:#5a7a5a;margin-bottom:16px">Period: For the 4 months ended 30 April 2026</p><div class="grid"><div class="kpi"><div class="kpi-l">Revenue</div><div class="kpi-v">${fmt(d.revenue)}</div></div><div class="kpi"><div class="kpi-l">Gross Profit</div><div class="kpi-v">${fmt(d.gross_profit)}</div></div><div class="kpi"><div class="kpi-l">EBITDA</div><div class="kpi-v">${fmt(d.ebitda)}</div></div><div class="kpi"><div class="kpi-l">Net Profit</div><div class="kpi-v">${fmt(d.net_profit)}</div></div></div><table><tr><th>Metric</th><th>Value</th><th>Margin %</th></tr><tr><td>Gross Profit</td><td>${fmtFull(d.gross_profit)}</td><td>${d.gp_margin.toFixed(1)}%</td></tr><tr><td>EBITDA</td><td>${fmtFull(d.ebitda)}</td><td>${d.ebitda_margin.toFixed(1)}%</td></tr><tr><td>FX Gains</td><td>${fmtFull(Math.abs(d.forex))}</td><td>—</td></tr><tr><td>Net Profit</td><td>${fmtFull(d.net_profit)}</td><td>${d.np_margin.toFixed(1)}%</td></tr></table><div class="notes"><strong>Notes & Action Items:</strong><br>${note||'No notes recorded.'}</div><div class="footer">Atticus Advisory Solutions, Inc. · Confidential · All amounts in Philippine Pesos (₱)</div></body></html>`);
+  pw.document.close();pw.print();
+}
+
+// ── Export CSV ──
+function exportCSV(){
+  const rows=[['Client','Revenue','Gross Profit','GP Margin %','EBITDA','EBITDA Margin %','FX Gains','Net Profit','NP Margin %','FTE','HC Status','Action Flags']];
+  DATA.forEach(d=>{
+    const hc=getHC(d.client);
+    rows.push([d.client,d.revenue.toFixed(2),d.gross_profit.toFixed(2),d.gp_margin.toFixed(2),d.ebitda.toFixed(2),d.ebitda_margin.toFixed(2),Math.abs(d.forex).toFixed(2),d.net_profit.toFixed(2),d.np_margin.toFixed(2),hc?hc.hc[HC_MONTHS.length-1]:'',hc?hc.tag:'',d.flags.map(f=>f.label).join('; ')]);
+  });
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='Atticus_Client_Profitability_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+}
+
+// ── Notes ──
+function saveNotes(){
+  try{localStorage.setItem('atticus_period_notes',document.getElementById('periodNotes').value);localStorage.setItem('atticus_action_notes',document.getElementById('actionNotes').value);}catch(e){}
+  const el=document.getElementById('notesSaved');el.style.display='inline';setTimeout(()=>el.style.display='none',2500);
+}
+document.getElementById('periodNotes').addEventListener('input',()=>{try{localStorage.setItem('atticus_period_notes',document.getElementById('periodNotes').value);}catch(e){}});
+document.getElementById('actionNotes').addEventListener('input',()=>{try{localStorage.setItem('atticus_action_notes',document.getElementById('actionNotes').value);}catch(e){}});
+
+// ── SheetJS: Xero ──
+function handleDrop(e){e.preventDefault();const f=e.dataTransfer.files[0];if(f&&f.name.endsWith('.xlsx'))processFile(f);else showUploadStatus('error','⚠ .xlsx only');}
+function handleFileUpload(e){const f=e.target.files[0];if(f)processFile(f);e.target.value='';}
+function showUploadStatus(type,msg){const el=document.getElementById('uploadStatus');el.className='upload-status '+type;el.textContent=msg;if(type==='success')setTimeout(()=>{el.className='upload-status';},4000);}
+function processFile(file){
+  showUploadStatus('loading','⏳ Reading…');
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      parseXeroSheet(raw);
+    }catch(err){showUploadStatus('error','⚠ '+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+function parseXeroSheet(rows){
+  let headerRow=-1;
+  for(let i=0;i<rows.length;i++){if(String(rows[i][0]).trim()==='Account'){headerRow=i;break;}}
+  if(headerRow===-1){showUploadStatus('error','⚠ "Account" header not found');return;}
+  const periodText=String(rows[2]?.[0]||'').trim();
+  const headerCols=rows[headerRow];
+  const clients=[],clientCols=[];
+  for(let c=1;c<headerCols.length;c++){const n=String(headerCols[c]).trim();if(n&&n.toLowerCase()!=='total'){clients.push(n);clientCols.push(c);}}
+  if(!clients.length){showUploadStatus('error','⚠ No client columns found');return;}
+  const rowIdx={};
+  for(let i=headerRow+1;i<rows.length;i++){const l=String(rows[i][0]).trim().toLowerCase();if(l)rowIdx[l]=i;}
+  function val(lbl,col){const r=rowIdx[lbl];if(r===undefined)return 0;const v=rows[r][col];return isNaN(parseFloat(v))?0:parseFloat(v);}
+  const parsed=[];
+  for(let ci=0;ci<clients.length;ci++){
+    const c=clientCols[ci];
+    const revenue=val('service revenue',c)+val('sales - management fee',c)+val('sales - contractor',c)+val('sales - wip',c);
+    const cogs=val('cost of sales',c);const opex=val('opex allocation',c);const forex=val('realised currency gains',c);
+    const gross_profit=revenue-cogs;const ebitda=gross_profit-opex;const net_profit=ebitda-forex;
+    const gp_margin=revenue!==0?(gross_profit/revenue*100):0;
+    const ebitda_margin=revenue!==0?(ebitda/revenue*100):0;
+    const np_margin=revenue!==0?(net_profit/revenue*100):0;
+    parsed.push({client:clients[ci],revenue:+revenue.toFixed(2),gross_profit:+gross_profit.toFixed(2),gp_margin:+gp_margin.toFixed(2),ebitda:+ebitda.toFixed(2),ebitda_margin:+ebitda_margin.toFixed(2),forex:+forex.toFixed(2),net_profit:+net_profit.toFixed(2),np_margin:+np_margin.toFixed(2)});
+  }
+  if(!parsed.length){showUploadStatus('error','⚠ No data rows found');return;}
+  ENRICHED=parsed.map(d=>({...d,flags:actionFlags(d)}));DATA=ENRICHED.slice();
+  if(periodText){
+    document.getElementById('topPeriod').textContent=periodText;
+    const dateMatch=periodText.match(/ended\s+(.+)/i);
+    const dateStr=dateMatch?dateMatch[1].trim():periodText;
+    document.getElementById('periodInfo').textContent='Data as at '+dateStr;
+  }
+  // ── Persist to localStorage so data survives page reload ──
+  try{
+    localStorage.setItem('atticus_xero_data', JSON.stringify(parsed));
+    localStorage.setItem('atticus_xero_period', periodText);
+  }catch(e){console.warn('localStorage save failed:',e);}
+  updateKPIs();buildOverviewCharts();buildAtRisk();buildConcentrationWarning();
+  // Refresh whichever tab is currently active
+  const activePage=document.querySelector('.page.active');
+  if(activePage){
+    const id=activePage.id;
+    if(id==='page-profitability'){buildProfitCharts();renderTop10('gp');}
+    if(id==='page-clients'){renderFullTable();}
+    if(id==='page-atrisk'){renderAtRiskFull();}
+    if(id==='page-insights'){buildInsights();}
+  }
+  document.getElementById('searchInput').value='';
+  showUploadStatus('success',`✓ ${parsed.length} clients · ${periodText} — saved to browser`);
+}
+
+// ── SheetJS: HC ──
+function handleDropHC(e){e.preventDefault();const f=e.dataTransfer.files[0];if(f&&f.name.endsWith('.xlsx'))processHCFile(f);else showUploadStatusHC('error','⚠ .xlsx only');}
+function handleFileUploadHC(e){const f=e.target.files[0];if(f)processHCFile(f);e.target.value='';}
+function showUploadStatusHC(type,msg){const el=document.getElementById('uploadStatusHC');el.className='upload-status '+type;el.textContent=msg;if(type==='success')setTimeout(()=>{el.className='upload-status';},4000);}
+function processHCFile(file){
+  showUploadStatusHC('loading','⏳ Reading…');
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      parseHCSheet(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));
+    }catch(err){showUploadStatusHC('error','⚠ '+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+function parseHCSheet(rows){
+  let headerRow=-1;
+  for(let i=0;i<rows.length;i++){if(String(rows[i][0]).trim()==='Name'){headerRow=i;break;}}
+  if(headerRow===-1){showUploadStatusHC('error','⚠ "Name" header not found');return;}
+  const monthRow=rows[headerRow],yearRow=rows[headerRow-1]||[];
+  const stopCols=new Set(['tagging','definition','action','']);
+  const months=[],dataCols=[];let currentYear='';
+  for(let c=1;c<monthRow.length;c++){
+    const mLabel=String(monthRow[c]).trim();const yLabel=String(yearRow[c]||'').trim();
+    if(yLabel&&!isNaN(yLabel))currentYear=yLabel;
+    if(stopCols.has(mLabel.toLowerCase()))break;
+    months.push(mLabel+(currentYear?'-'+currentYear.slice(2):''));dataCols.push(c);
+  }
+  if(!months.length){showUploadStatusHC('error','⚠ No month columns found');return;}
+  let tagCol=-1;for(let c=1;c<monthRow.length;c++){if(String(monthRow[c]).trim().toLowerCase()==='tagging'){tagCol=c;break;}}
+  let actualRow=-1;for(let i=headerRow+1;i<rows.length;i++){if(String(rows[i][0]).trim()==='Actual'){actualRow=i;break;}}
+  const end=actualRow>-1?actualRow:rows.length;
+  const parsed=[];
+  const NAME_MAP={
+    'Kit':'KIT','Staria':'STARIA','BPM CPA':'BPM','Macrofin':'MACROFIN',
+    'Ekwani':'EKWANI','BringIT':'BRING IT','Avano (prev Palmerston)':'AVANO',
+    'F3EA Co':'MOLLIE','Moss Adams':'MOSS ADAM','DTSanz':'DTSANZ',
+    'PKF Digital (prev. OnlineOne)':'ONLINEONE','Elive':'ELIVE',
+    'BrightFin':'BRIGHTFIN','Dyned':'DYNED','Cloud Culture':'CLOUD CULTURE',
+    'Nuage':'NUAGE','Sentrien':'SENTRIEN','Cirrus ERP':'CIRRUS ERP',
+    'Solar Provider Group':'SOLAR','Silk Letter':'SILK LETTER',
+    'Surevision/Techfront':'SUREVISION','BlueBridgeOne':'BLUEBRIDGE ONE',
+    'Landmark':'LANDMARK','NetatWork':'NET AT WORK','PlayQ':'PLAYQ',
+    'Layer 3':'LAYER3','The Solutions Cloud':'SOLUTIONS CLOUD','Tactiv':'TACTIV',
+    'Boston Solar/VTS':'VTSI',
+    'Bepoz':'BEPOZ','ERP Buddies':'OSI DIGITAL','Palladium':'PALLADIUM',
+    'One Degree Capital':'ONE DEGREE','Pallacanestro Varese SRL':'VARESE',
+    '311 Cloud Consulting':'311 CLOUD','BlueCollar Cloud Solutions':'BLUECOLLAR',
+    'Tigo Energy, Inc.':'TIGO','Bezos AI':'BEZOS AI',
+    'Modulo Cloud Solutions':'MODULO','Zone and Co.':'ZONE AND CO',
+    'NetGain Solutions':'NETGAIN','Gold Bond Inc.':'GOLD BOND',
+    'Klugo PTY LTD':'KLUGO','Net Lobster LLC':'NET LOBSTER',
+    'Accounting Specialty Group':'ASG','TGI Sport':'TGI',
+    'Kimberlite Partners':'KIMBERLITE','Pexa Park AG':'PEXAPARK',
+    'Exile LLC':'EXILE','Worklocker':'WORKLOCKER',
+    'Ultimo Dental Software':'ULTIMO','Mersive Techonologies Inc.':'MERSIVE',
+    'Pritam Development LTD.':'PRITAM','Ashokan Technology Solutions':'ASHOKAN',
+    'Sansa Solutions Limited':'SANSA','Maas Energy':'MAAS ENERGY',
+    'Aphobos Crossfit':'APHOBOS','Golf Swag LLC':'GOLF SWAG',
+    'Soulstice Products LLC':'SOULSTICE','Primary NP Associates':'PRIMARY',
+    'Board International SA':'BOARD INTERNATIONAL',
+    'Flexxus Business Solutions':'FLEXXUS','TUI Solutions LLC':'TUI',
+  };
+  for(let i=headerRow+1;i<end;i++){
+    const nameVal=String(rows[i][0]).trim();if(!nameVal)continue;
+    const hcVals=dataCols.map(c=>{const v=rows[i][c];return v===''||v===null||v===undefined?0:isNaN(Number(v))?0:Number(v);});
+    const tag=tagCol>=0?String(rows[i][tagCol]||'').trim():'';
+    parsed.push({name:NAME_MAP[nameVal]||(nameVal.toUpperCase()),hc:hcVals,tag:tag||'Dormant'});
+  }
+  if(!parsed.length){showUploadStatusHC('error','⚠ No client rows found');return;}
+  HC_RAW.length=0;parsed.forEach(r=>HC_RAW.push(r));
+  Object.keys(HC_MAP).forEach(k=>delete HC_MAP[k]);HC_RAW.forEach(r=>HC_MAP[r.name]=r);
+  HC_MONTHS.length=0;months.forEach(m=>HC_MONTHS.push(m));
+  // ── Persist to localStorage so HC data survives page reload ──
+  try{
+    localStorage.setItem('atticus_hc_data', JSON.stringify(parsed));
+    localStorage.setItem('atticus_hc_months', JSON.stringify(months));
+  }catch(e){console.warn('localStorage HC save failed:',e);}
+  if(document.getElementById('page-headcount').classList.contains('active'))buildHCSection();
+  if(document.getElementById('page-overview').classList.contains('active'))renderTop15HC();
+  renderFullTable();
+  showUploadStatusHC('success',`✓ ${parsed.length} clients · ${months[0]}→${months[months.length-1]} — saved to browser`);
+}
+
+// ── Clear saved data (revert to hardcoded defaults) ──
+function clearSavedData(){
+  if(!confirm('This will clear all saved Xero data, HC data, and notes from this browser.\n\nThe dashboard will revert to the hardcoded defaults. Continue?'))return;
+  try{
+    ['atticus_xero_data','atticus_xero_period','atticus_hc_data','atticus_hc_months',
+     'atticus_client_notes','atticus_period_notes','atticus_action_notes'].forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+  location.reload();
+}
+
+// ── Init ──
+function init(){
+  // ── Load persisted Xero data from localStorage (overrides hardcoded defaults) ──
+  try{
+    const savedXero=localStorage.getItem('atticus_xero_data');
+    const savedPeriod=localStorage.getItem('atticus_xero_period');
+    if(savedXero){
+      const parsed=JSON.parse(savedXero);
+      if(parsed&&parsed.length){
+        ENRICHED=parsed.map(d=>({...d,flags:actionFlags(d)}));
+        DATA=ENRICHED.slice();
+        if(savedPeriod){
+          document.getElementById('topPeriod').textContent=savedPeriod;
+          const dateMatch=savedPeriod.match(/ended\s+(.+)/i);
+          const dateStr=dateMatch?dateMatch[1].trim():savedPeriod;
+          document.getElementById('periodInfo').textContent='Data as at '+dateStr;
+        }
+      }
+    }
+  }catch(e){console.warn('localStorage Xero load failed:',e);}
+
+  // ── Load persisted HC data from localStorage ──
+  try{
+    const savedHC=localStorage.getItem('atticus_hc_data');
+    const savedMonths=localStorage.getItem('atticus_hc_months');
+    if(savedHC&&savedMonths){
+      const parsedHC=JSON.parse(savedHC);
+      const parsedMonths=JSON.parse(savedMonths);
+      if(parsedHC&&parsedHC.length&&parsedMonths&&parsedMonths.length){
+        HC_RAW.length=0;parsedHC.forEach(r=>HC_RAW.push(r));
+        Object.keys(HC_MAP).forEach(k=>delete HC_MAP[k]);
+        HC_RAW.forEach(r=>HC_MAP[r.name]=r);
+        HC_MONTHS.length=0;parsedMonths.forEach(m=>HC_MONTHS.push(m));
+      }
+    }
+  }catch(e){console.warn('localStorage HC load failed:',e);}
+
+  // ── Load persisted client notes ──
+  try{
+    const savedNotes=localStorage.getItem('atticus_client_notes');
+    if(savedNotes){
+      const n=JSON.parse(savedNotes);
+      Object.assign(CLIENT_NOTES,n);
+    }
+  }catch(e){}
+
+  // ── Render everything ──
+  updateKPIs();buildOverviewCharts();buildAtRisk();buildConcentrationWarning();renderTop10('gp');
+
+  // ── Load commentary ──
+  try{
+    document.getElementById('periodNotes').value=localStorage.getItem('atticus_period_notes')||'';
+    document.getElementById('actionNotes').value=localStorage.getItem('atticus_action_notes')||'';
+  }catch(e){}
+}
+init();
+</script>
+</body>
+</html>
