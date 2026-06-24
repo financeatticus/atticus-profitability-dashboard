@@ -1003,27 +1003,33 @@ function exportCSV(){
 // ══════════════════════════════════════════════════════════════════
 const JSONBIN_KEY  = '$2a$10$KRzvEyeQcVEQN/EQO0Y7v.SGMwJnSVyxTWsbL8Lntv.2YY/uHuxnK';
 const JSONBIN_BASE = 'https://api.jsonbin.io/v3';
-let   JSONBIN_ID   = null;   // auto-discovered or stored in localStorage
-let   _savePending = false;  // debounce flag
+// ── Shared bin ID — hardcoded so ALL users read from the same bin ──
+let JSONBIN_BIN_ID = '6a3b5b0bf5f4af5e2926e332';
+let _savePending   = false;
 
-// ── Load bin ID from localStorage (set after first save) ──
-function jbGetId(){ try{ return localStorage.getItem('atticus_jb_id')||null; }catch(e){ return null; } }
-function jbSetId(id){ try{ localStorage.setItem('atticus_jb_id', id); }catch(e){} JSONBIN_ID = id; }
+// ── Get bin ID — always returns the hardcoded shared bin ──
+async function jbEnsureId(){
+  return JSONBIN_BIN_ID;
+}
+function jbGetId(){ return JSONBIN_BIN_ID; }
+function jbSetId(id){ JSONBIN_BIN_ID = id; try{ localStorage.setItem('atticus_jb_id', id); }catch(e){} }
 
 // ── Read all shared notes from JSONBin ──
 async function jbLoad(){
-  if(JSONBIN_KEY === 'YOUR_JSONBIN_API_KEY') return; // not configured yet
-  const id = jbGetId();
-  if(!id){ await jbCreate(); return; }
+  if(JSONBIN_KEY === 'YOUR_JSONBIN_API_KEY') return;
   try{
+    const id = await jbEnsureId();
+    if(!id){ await jbCreate(); return; }
     const res = await fetch(`${JSONBIN_BASE}/b/${id}/latest`, {
       headers:{ 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' }
     });
     if(!res.ok) throw new Error(res.status);
     const data = await res.json();
-    // data is the notes object: { "KIT": "...", "BEPOZ": "...", ... }
     if(data && typeof data === 'object' && !Array.isArray(data)){
+      // Merge: remote wins over local so shared notes always show
       Object.assign(CLIENT_NOTES, data);
+      // Also update localStorage with latest from server
+      try{ localStorage.setItem('atticus_client_notes', JSON.stringify(CLIENT_NOTES)); }catch(e){}
       refreshAllTables();
     }
   }catch(e){
@@ -1047,8 +1053,9 @@ async function jbCreate(){
     });
     if(!res.ok) throw new Error(res.status);
     const data = await res.json();
-    jbSetId(data.metadata.id);
-    console.log('JSONBin created:', data.metadata.id);
+    const newId = data.metadata?.id || data.record?.id || data.id;
+    if(newId) jbSetId(newId);
+    console.log('JSONBin bin created:', newId);
   }catch(e){
     console.warn('JSONBin create failed:', e);
   }
@@ -1059,12 +1066,11 @@ function jbSave(){
   if(JSONBIN_KEY === 'YOUR_JSONBIN_API_KEY') return;
   if(_savePending) return;
   _savePending = true;
-  // Show syncing indicator if it exists
   const syncEl = document.getElementById('jbSyncStatus');
   if(syncEl){ syncEl.textContent='🔄 Syncing…'; syncEl.style.display='inline'; }
   setTimeout(async ()=>{
     _savePending = false;
-    const id = jbGetId();
+    const id = await jbEnsureId();
     if(!id){ await jbCreate(); return; }
     try{
       const res = await fetch(`${JSONBIN_BASE}/b/${id}`, {
