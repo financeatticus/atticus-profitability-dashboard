@@ -950,14 +950,17 @@ function openModal(clientName){
       <button class="print-btn" onclick="saveClientNote('${clientName}')">💾 Save Note</button>
       <button class="print-btn" style="background:var(--blue)" onclick="printClient('${clientName}')">🖨 Print One-Pager</button>
       <span id="noteSavedFor_${clientName}" style="font-size:11px;color:var(--green);display:none;align-self:center">✓ Saved</span>
+      <span id="jbSyncStatus" style="font-size:11px;color:var(--muted);display:none;align-self:center;margin-left:4px"></span>
     </div>`;
   document.getElementById('modal-overlay').classList.add('open');
 }
 function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
 function saveClientNote(name){
   CLIENT_NOTES[name]=document.getElementById('noteFor_'+name).value;
-  // Persist all client notes
+  // Save locally as immediate backup
   try{localStorage.setItem('atticus_client_notes',JSON.stringify(CLIENT_NOTES));}catch(e){}
+  // Save to JSONBin so all users see the update
+  jbSave();
   // Refresh the active table so the new note appears in Remarks immediately
   const activePage=document.querySelector('.page.active');
   if(activePage){
@@ -991,179 +994,136 @@ function exportCSV(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='Atticus_Client_Profitability_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
 }
 
-// ── Notes ──
+// ══════════════════════════════════════════════════════════════════
+//  JSONBIN — shared notes storage (replace key after signing up at jsonbin.io)
+//  1. Sign up free at https://jsonbin.io
+//  2. Go to API Keys → copy your Secret Key (starts with $2b$...)
+//  3. Replace YOUR_JSONBIN_API_KEY below with your actual key
+//  4. On first run the dashboard will auto-create the bin and save the ID
+// ══════════════════════════════════════════════════════════════════
+const JSONBIN_KEY  = '$2a$10$KRzvEyeQcVEQN/EQO0Y7v.SGMwJnSVyxTWsbL8Lntv.2YY/uHuxnK';
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3';
+let   JSONBIN_ID   = null;   // auto-discovered or stored in localStorage
+let   _savePending = false;  // debounce flag
+
+// ── Load bin ID from localStorage (set after first save) ──
+function jbGetId(){ try{ return localStorage.getItem('atticus_jb_id')||null; }catch(e){ return null; } }
+function jbSetId(id){ try{ localStorage.setItem('atticus_jb_id', id); }catch(e){} JSONBIN_ID = id; }
+
+// ── Read all shared notes from JSONBin ──
+async function jbLoad(){
+  if(JSONBIN_KEY === 'YOUR_JSONBIN_API_KEY') return; // not configured yet
+  const id = jbGetId();
+  if(!id){ await jbCreate(); return; }
+  try{
+    const res = await fetch(`${JSONBIN_BASE}/b/${id}/latest`, {
+      headers:{ 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' }
+    });
+    if(!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    // data is the notes object: { "KIT": "...", "BEPOZ": "...", ... }
+    if(data && typeof data === 'object' && !Array.isArray(data)){
+      Object.assign(CLIENT_NOTES, data);
+      refreshAllTables();
+    }
+  }catch(e){
+    console.warn('JSONBin load failed — using local notes:', e);
+  }
+}
+
+// ── Create a new bin on first use ──
+async function jbCreate(){
+  if(JSONBIN_KEY === 'YOUR_JSONBIN_API_KEY') return;
+  try{
+    const res = await fetch(`${JSONBIN_BASE}/b`, {
+      method: 'POST',
+      headers:{
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_KEY,
+        'X-Bin-Name': 'atticus-client-notes',
+        'X-Bin-Private': 'true'
+      },
+      body: JSON.stringify(CLIENT_NOTES)
+    });
+    if(!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    jbSetId(data.metadata.id);
+    console.log('JSONBin created:', data.metadata.id);
+  }catch(e){
+    console.warn('JSONBin create failed:', e);
+  }
+}
+
+// ── Save all notes to JSONBin (debounced 800ms) ──
+function jbSave(){
+  if(JSONBIN_KEY === 'YOUR_JSONBIN_API_KEY') return;
+  if(_savePending) return;
+  _savePending = true;
+  // Show syncing indicator if it exists
+  const syncEl = document.getElementById('jbSyncStatus');
+  if(syncEl){ syncEl.textContent='🔄 Syncing…'; syncEl.style.display='inline'; }
+  setTimeout(async ()=>{
+    _savePending = false;
+    const id = jbGetId();
+    if(!id){ await jbCreate(); return; }
+    try{
+      const res = await fetch(`${JSONBIN_BASE}/b/${id}`, {
+        method: 'PUT',
+        headers:{
+          'Content-Type': 'application/json',
+          'X-Master-Key': JSONBIN_KEY
+        },
+        body: JSON.stringify(CLIENT_NOTES)
+      });
+      if(!res.ok) throw new Error(res.status);
+      if(syncEl){ syncEl.textContent='✓ Synced'; setTimeout(()=>syncEl.style.display='none',2000); }
+    }catch(e){
+      console.warn('JSONBin save failed — note saved locally only:', e);
+      if(syncEl){ syncEl.textContent='⚠ Sync failed (saved locally)'; setTimeout(()=>syncEl.style.display='none',3000); }
+    }
+  }, 800);
+}
+
+// ── Refresh all visible tables after notes load ──
+function refreshAllTables(){
+  const activePage = document.querySelector('.page.active');
+  if(!activePage) return;
+  const id = activePage.id;
+  if(id==='page-overview')  renderOverviewTop10('gp');
+  if(id==='page-profitability') renderTop10('gp');
+  if(id==='page-clients')   renderFullTable();
+  if(id==='page-atrisk')    renderAtRiskFull();
+}
+
+// ── Notes UI ──
 function saveNotes(){
-  try{localStorage.setItem('atticus_period_notes',document.getElementById('periodNotes').value);localStorage.setItem('atticus_action_notes',document.getElementById('actionNotes').value);}catch(e){}
-  const el=document.getElementById('notesSaved');el.style.display='inline';setTimeout(()=>el.style.display='none',2500);
-}
-document.getElementById('periodNotes').addEventListener('input',()=>{try{localStorage.setItem('atticus_period_notes',document.getElementById('periodNotes').value);}catch(e){}});
-document.getElementById('actionNotes').addEventListener('input',()=>{try{localStorage.setItem('atticus_action_notes',document.getElementById('actionNotes').value);}catch(e){}});
-
-// ── SheetJS: Xero ──
-function handleDrop(e){e.preventDefault();const f=e.dataTransfer.files[0];if(f&&f.name.endsWith('.xlsx'))processFile(f);else showUploadStatus('error','⚠ .xlsx only');}
-function handleFileUpload(e){const f=e.target.files[0];if(f)processFile(f);e.target.value='';}
-function showUploadStatus(type,msg){const el=document.getElementById('uploadStatus');el.className='upload-status '+type;el.textContent=msg;if(type==='success')setTimeout(()=>{el.className='upload-status';},4000);}
-function processFile(file){
-  showUploadStatus('loading','⏳ Reading…');
-  const reader=new FileReader();
-  reader.onload=function(e){
-    try{
-      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      parseXeroSheet(raw);
-    }catch(err){showUploadStatus('error','⚠ '+err.message);}
-  };
-  reader.readAsArrayBuffer(file);
-}
-function parseXeroSheet(rows){
-  let headerRow=-1;
-  for(let i=0;i<rows.length;i++){if(String(rows[i][0]).trim()==='Account'){headerRow=i;break;}}
-  if(headerRow===-1){showUploadStatus('error','⚠ "Account" header not found');return;}
-  const periodText=String(rows[2]?.[0]||'').trim();
-  const headerCols=rows[headerRow];
-  const clients=[],clientCols=[];
-  for(let c=1;c<headerCols.length;c++){const n=String(headerCols[c]).trim();if(n&&n.toLowerCase()!=='total'){clients.push(n);clientCols.push(c);}}
-  if(!clients.length){showUploadStatus('error','⚠ No client columns found');return;}
-  const rowIdx={};
-  for(let i=headerRow+1;i<rows.length;i++){const l=String(rows[i][0]).trim().toLowerCase();if(l)rowIdx[l]=i;}
-  function val(lbl,col){const r=rowIdx[lbl];if(r===undefined)return 0;const v=rows[r][col];return isNaN(parseFloat(v))?0:parseFloat(v);}
-  const parsed=[];
-  for(let ci=0;ci<clients.length;ci++){
-    const c=clientCols[ci];
-    const revenue=val('service revenue',c)+val('sales - management fee',c)+val('sales - contractor',c)+val('sales - wip',c);
-    const cogs=val('cost of sales',c);const opex=val('opex allocation',c);const forex=val('realised currency gains',c);
-    const gross_profit=revenue-cogs;const ebitda=gross_profit-opex;const net_profit=ebitda-forex;
-    const gp_margin=revenue!==0?(gross_profit/revenue*100):0;
-    const ebitda_margin=revenue!==0?(ebitda/revenue*100):0;
-    const np_margin=revenue!==0?(net_profit/revenue*100):0;
-    parsed.push({client:clients[ci],revenue:+revenue.toFixed(2),gross_profit:+gross_profit.toFixed(2),gp_margin:+gp_margin.toFixed(2),ebitda:+ebitda.toFixed(2),ebitda_margin:+ebitda_margin.toFixed(2),forex:+forex.toFixed(2),net_profit:+net_profit.toFixed(2),np_margin:+np_margin.toFixed(2)});
-  }
-  if(!parsed.length){showUploadStatus('error','⚠ No data rows found');return;}
-  ENRICHED=parsed.map(d=>({...d,flags:actionFlags(d)}));DATA=ENRICHED.slice();
-  if(periodText){
-    document.getElementById('topPeriod').textContent=periodText;
-    const dateMatch=periodText.match(/ended\s+(.+)/i);
-    const dateStr=dateMatch?dateMatch[1].trim():periodText;
-    document.getElementById('periodInfo').textContent='Data as at '+dateStr;
-  }
-  // ── Persist to localStorage so data survives page reload ──
   try{
-    localStorage.setItem('atticus_xero_data', JSON.stringify(parsed));
-    localStorage.setItem('atticus_xero_period', periodText);
-  }catch(e){console.warn('localStorage save failed:',e);}
-  updateKPIs();buildOverviewCharts();buildAtRisk();buildConcentrationWarning();
-  // Refresh whichever tab is currently active
-  const activePage=document.querySelector('.page.active');
-  if(activePage){
-    const id=activePage.id;
-    if(id==='page-profitability'){buildProfitCharts();renderTop10('gp');}
-    if(id==='page-clients'){renderFullTable();}
-    if(id==='page-atrisk'){renderAtRiskFull();}
-    if(id==='page-insights'){buildInsights();}
-  }
-  document.getElementById('searchInput').value='';
-  showUploadStatus('success',`✓ ${parsed.length} clients · ${periodText} — saved to browser`);
+    localStorage.setItem('atticus_period_notes', document.getElementById('periodNotes').value);
+    localStorage.setItem('atticus_action_notes', document.getElementById('actionNotes').value);
+  }catch(e){}
+  const el=document.getElementById('notesSaved');
+  el.style.display='inline'; setTimeout(()=>el.style.display='none', 2500);
 }
-
-// ── SheetJS: HC ──
-function handleDropHC(e){e.preventDefault();const f=e.dataTransfer.files[0];if(f&&f.name.endsWith('.xlsx'))processHCFile(f);else showUploadStatusHC('error','⚠ .xlsx only');}
-function handleFileUploadHC(e){const f=e.target.files[0];if(f)processHCFile(f);e.target.value='';}
-function showUploadStatusHC(type,msg){const el=document.getElementById('uploadStatusHC');el.className='upload-status '+type;el.textContent=msg;if(type==='success')setTimeout(()=>{el.className='upload-status';},4000);}
-function processHCFile(file){
-  showUploadStatusHC('loading','⏳ Reading…');
-  const reader=new FileReader();
-  reader.onload=function(e){
-    try{
-      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      parseHCSheet(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));
-    }catch(err){showUploadStatusHC('error','⚠ '+err.message);}
-  };
-  reader.readAsArrayBuffer(file);
-}
-function parseHCSheet(rows){
-  let headerRow=-1;
-  for(let i=0;i<rows.length;i++){if(String(rows[i][0]).trim()==='Name'){headerRow=i;break;}}
-  if(headerRow===-1){showUploadStatusHC('error','⚠ "Name" header not found');return;}
-  const monthRow=rows[headerRow],yearRow=rows[headerRow-1]||[];
-  const stopCols=new Set(['tagging','definition','action','']);
-  const months=[],dataCols=[];let currentYear='';
-  for(let c=1;c<monthRow.length;c++){
-    const mLabel=String(monthRow[c]).trim();const yLabel=String(yearRow[c]||'').trim();
-    if(yLabel&&!isNaN(yLabel))currentYear=yLabel;
-    if(stopCols.has(mLabel.toLowerCase()))break;
-    months.push(mLabel+(currentYear?'-'+currentYear.slice(2):''));dataCols.push(c);
-  }
-  if(!months.length){showUploadStatusHC('error','⚠ No month columns found');return;}
-  let tagCol=-1;for(let c=1;c<monthRow.length;c++){if(String(monthRow[c]).trim().toLowerCase()==='tagging'){tagCol=c;break;}}
-  let actualRow=-1;for(let i=headerRow+1;i<rows.length;i++){if(String(rows[i][0]).trim()==='Actual'){actualRow=i;break;}}
-  const end=actualRow>-1?actualRow:rows.length;
-  const parsed=[];
-  const NAME_MAP={
-    'Kit':'KIT','Staria':'STARIA','BPM CPA':'BPM','Macrofin':'MACROFIN',
-    'Ekwani':'EKWANI','BringIT':'BRING IT','Avano (prev Palmerston)':'AVANO',
-    'F3EA Co':'MOLLIE','Moss Adams':'MOSS ADAM','DTSanz':'DTSANZ',
-    'PKF Digital (prev. OnlineOne)':'ONLINEONE','Elive':'ELIVE',
-    'BrightFin':'BRIGHTFIN','Dyned':'DYNED','Cloud Culture':'CLOUD CULTURE',
-    'Nuage':'NUAGE','Sentrien':'SENTRIEN','Cirrus ERP':'CIRRUS ERP',
-    'Solar Provider Group':'SOLAR','Silk Letter':'SILK LETTER',
-    'Surevision/Techfront':'SUREVISION','BlueBridgeOne':'BLUEBRIDGE ONE',
-    'Landmark':'LANDMARK','NetatWork':'NET AT WORK','PlayQ':'PLAYQ',
-    'Layer 3':'LAYER3','The Solutions Cloud':'SOLUTIONS CLOUD','Tactiv':'TACTIV',
-    'Boston Solar/VTS':'VTSI',
-    'Bepoz':'BEPOZ','ERP Buddies':'OSI DIGITAL','Palladium':'PALLADIUM',
-    'One Degree Capital':'ONE DEGREE','Pallacanestro Varese SRL':'VARESE',
-    '311 Cloud Consulting':'311 CLOUD','BlueCollar Cloud Solutions':'BLUECOLLAR',
-    'Tigo Energy, Inc.':'TIGO','Bezos AI':'BEZOS AI',
-    'Modulo Cloud Solutions':'MODULO','Zone and Co.':'ZONE AND CO',
-    'NetGain Solutions':'NETGAIN','Gold Bond Inc.':'GOLD BOND',
-    'Klugo PTY LTD':'KLUGO','Net Lobster LLC':'NET LOBSTER',
-    'Accounting Specialty Group':'ASG','TGI Sport':'TGI',
-    'Kimberlite Partners':'KIMBERLITE','Pexa Park AG':'PEXAPARK',
-    'Exile LLC':'EXILE','Worklocker':'WORKLOCKER',
-    'Ultimo Dental Software':'ULTIMO','Mersive Techonologies Inc.':'MERSIVE',
-    'Pritam Development LTD.':'PRITAM','Ashokan Technology Solutions':'ASHOKAN',
-    'Sansa Solutions Limited':'SANSA','Maas Energy':'MAAS ENERGY',
-    'Aphobos Crossfit':'APHOBOS','Golf Swag LLC':'GOLF SWAG',
-    'Soulstice Products LLC':'SOULSTICE','Primary NP Associates':'PRIMARY',
-    'Board International SA':'BOARD INTERNATIONAL',
-    'Flexxus Business Solutions':'FLEXXUS','TUI Solutions LLC':'TUI',
-  };
-  for(let i=headerRow+1;i<end;i++){
-    const nameVal=String(rows[i][0]).trim();if(!nameVal)continue;
-    const hcVals=dataCols.map(c=>{const v=rows[i][c];return v===''||v===null||v===undefined?0:isNaN(Number(v))?0:Number(v);});
-    const tag=tagCol>=0?String(rows[i][tagCol]||'').trim():'';
-    parsed.push({name:NAME_MAP[nameVal]||(nameVal.toUpperCase()),hc:hcVals,tag:tag||'Dormant'});
-  }
-  if(!parsed.length){showUploadStatusHC('error','⚠ No client rows found');return;}
-  HC_RAW.length=0;parsed.forEach(r=>HC_RAW.push(r));
-  Object.keys(HC_MAP).forEach(k=>delete HC_MAP[k]);HC_RAW.forEach(r=>HC_MAP[r.name]=r);
-  HC_MONTHS.length=0;months.forEach(m=>HC_MONTHS.push(m));
-  // ── Persist to localStorage so HC data survives page reload ──
-  try{
-    localStorage.setItem('atticus_hc_data', JSON.stringify(parsed));
-    localStorage.setItem('atticus_hc_months', JSON.stringify(months));
-  }catch(e){console.warn('localStorage HC save failed:',e);}
-  if(document.getElementById('page-headcount').classList.contains('active'))buildHCSection();
-  if(document.getElementById('page-overview').classList.contains('active'))renderTop15HC();
-  renderFullTable();
-  showUploadStatusHC('success',`✓ ${parsed.length} clients · ${months[0]}→${months[months.length-1]} — saved to browser`);
-}
-
-// ── Clear saved data (revert to hardcoded defaults) ──
+document.getElementById('periodNotes').addEventListener('input',()=>{
+  try{localStorage.setItem('atticus_period_notes', document.getElementById('periodNotes').value);}catch(e){}
+});
+document.getElementById('actionNotes').addEventListener('input',()=>{
+  try{localStorage.setItem('atticus_action_notes', document.getElementById('actionNotes').value);}catch(e){}
+});
+// ── Clear saved data ──
 function clearSavedData(){
   if(!confirm('This will clear all saved Xero data, HC data, and notes from this browser.\n\nThe dashboard will revert to the hardcoded defaults. Continue?'))return;
   try{
     ['atticus_xero_data','atticus_xero_period','atticus_hc_data','atticus_hc_months',
-     'atticus_client_notes','atticus_period_notes','atticus_action_notes'].forEach(k=>localStorage.removeItem(k));
+     'atticus_client_notes','atticus_period_notes','atticus_action_notes',
+     'atticus_jb_id'].forEach(k=>localStorage.removeItem(k));
   }catch(e){}
   location.reload();
 }
 
 // ── Init ──
 function init(){
-  // ── Load persisted Xero data from localStorage (overrides hardcoded defaults) ──
+  // Load persisted Xero data
   try{
     const savedXero=localStorage.getItem('atticus_xero_data');
     const savedPeriod=localStorage.getItem('atticus_xero_period');
@@ -1174,15 +1134,14 @@ function init(){
         DATA=ENRICHED.slice();
         if(savedPeriod){
           document.getElementById('topPeriod').textContent=savedPeriod;
-          const dateMatch=savedPeriod.match(/ended\s+(.+)/i);
-          const dateStr=dateMatch?dateMatch[1].trim():savedPeriod;
-          document.getElementById('periodInfo').textContent='Data as at '+dateStr;
+          const dm=savedPeriod.match(/ended\s+(.+)/i);
+          document.getElementById('periodInfo').textContent='Data as at '+(dm?dm[1].trim():savedPeriod);
         }
       }
     }
   }catch(e){console.warn('localStorage Xero load failed:',e);}
 
-  // ── Load persisted HC data from localStorage ──
+  // Load persisted HC data
   try{
     const savedHC=localStorage.getItem('atticus_hc_data');
     const savedMonths=localStorage.getItem('atticus_hc_months');
@@ -1198,23 +1157,23 @@ function init(){
     }
   }catch(e){console.warn('localStorage HC load failed:',e);}
 
-  // ── Load persisted client notes ──
+  // Load local client notes (shown immediately while JSONBin loads)
   try{
     const savedNotes=localStorage.getItem('atticus_client_notes');
-    if(savedNotes){
-      const n=JSON.parse(savedNotes);
-      Object.assign(CLIENT_NOTES,n);
-    }
+    if(savedNotes){Object.assign(CLIENT_NOTES,JSON.parse(savedNotes));}
   }catch(e){}
 
-  // ── Render everything ──
+  // Render everything with local data first
   updateKPIs();buildOverviewCharts();buildAtRisk();buildConcentrationWarning();renderTop10('gp');
 
-  // ── Load commentary ──
+  // Load commentary
   try{
     document.getElementById('periodNotes').value=localStorage.getItem('atticus_period_notes')||'';
     document.getElementById('actionNotes').value=localStorage.getItem('atticus_action_notes')||'';
   }catch(e){}
+
+  // Then fetch shared notes from JSONBin (overrides local if set)
+  jbLoad();
 }
 init();
 </script>
