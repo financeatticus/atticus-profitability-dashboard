@@ -584,7 +584,6 @@ function pillPct(v){const c=v>=20?'pos':v>=0?'warn':'neg';return`<span class="pi
 function actionFlags(d){
   const f=[];
   if(d.revenue>0&&d.ebitda_margin<5)f.push({label:'Review OPEX',cls:'opex'});
-  if(d.revenue>0&&Math.abs(d.forex)>d.ebitda*0.5&&d.ebitda>0)f.push({label:'FOREX hedge needed',cls:'forex'});
   if(d.revenue>0&&d.gp_margin>30&&d.ebitda_margin<15)f.push({label:'OPEX optimisation',cls:'opex'});
   if(d.revenue>0&&d.gp_margin>35&&d.np_margin>20)f.push({label:'Upsell opportunity',cls:'upsell'});
   if(d.revenue>0&&d.ebitda<0)f.push({label:'Needs review',cls:'review'});
@@ -644,7 +643,7 @@ function buildAtRisk(){
 
 function renderAtRiskFull(){
   const ar=DATA.filter(d=>d.revenue>0&&d.ebitda<0).sort((a,b)=>a.ebitda-b.ebitda);
-  let html=`<table><thead><tr><th>Client</th><th class="r">Revenue</th><th class="r">Gross Profit</th><th class="r">GP%</th><th class="r">EBITDA</th><th class="r">EBITDA%</th><th class="r">Net Profit</th><th>Action Flags</th></tr></thead><tbody>`;
+  let html=`<table><thead><tr><th>Client</th><th class="r">Revenue</th><th class="r">Gross Profit</th><th class="r">GP%</th><th class="r">EBITDA</th><th class="r">EBITDA%</th><th class="r">Net Profit</th><th>Remarks</th></tr></thead><tbody>`;
   ar.forEach(d=>{
     const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
     html+=`<tr onclick="openModal('${d.client}')"><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="color:${d.gross_profit<0?'var(--red)':'inherit'}">${fmt(d.gross_profit)}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r" style="color:var(--red);font-weight:700">${fmt(d.ebitda)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r" style="color:${d.net_profit<0?'var(--red)':'inherit'}">${fmt(d.net_profit)}</td><td>${flags||'—'}</td></tr>`;
@@ -685,7 +684,7 @@ function renderOverviewTop10(metric){
   const lblMap={gp:'Gross Profit',ebitda:'EBITDA',np:'Net Profit'};
   const mKey=keyMap[metric];
   const sorted=[...DATA].sort((a,b)=>b[mKey]-a[mKey]).slice(0,10);
-  let html=`<table><thead><tr><th>#</th><th>Client</th><th class="r">Revenue</th><th class="r">${lblMap[metric]}</th><th class="r">GP%</th><th class="r">EBITDA%</th><th class="r">NP%</th><th>Flags</th></tr></thead><tbody>`;
+  let html=`<table><thead><tr><th>#</th><th>Client</th><th class="r">Revenue</th><th class="r">${lblMap[metric]}</th><th class="r">GP%</th><th class="r">EBITDA%</th><th class="r">NP%</th><th>Remarks</th></tr></thead><tbody>`;
   sorted.forEach((d,i)=>{
     const rc=i===0?'g':i===1?'s':i===2?'b':'';
     const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
@@ -767,7 +766,7 @@ function renderTop10(metric){
   const lblMap={gp:'Gross Profit',ebitda:'EBITDA',np:'Net Profit'};
   const mKey=keyMap[metric];
   const sorted=[...DATA].sort((a,b)=>b[mKey]-a[mKey]).slice(0,10);
-  let html=`<table><thead><tr><th>#</th><th>Client</th><th class="r">Revenue</th><th class="r">${lblMap[metric]}</th><th class="r">GP%</th><th class="r">EBITDA%</th><th class="r">NP%</th><th>Flags</th></tr></thead><tbody>`;
+  let html=`<table><thead><tr><th>#</th><th>Client</th><th class="r">Revenue</th><th class="r">${lblMap[metric]}</th><th class="r">GP%</th><th class="r">EBITDA%</th><th class="r">NP%</th><th>Remarks</th></tr></thead><tbody>`;
   sorted.forEach((d,i)=>{
     const rc=i===0?'g':i===1?'s':i===2?'b':'';
     const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
@@ -789,7 +788,7 @@ function sparkSVG(hcArr){
 function renderFullTable(){
   const sortKey=document.getElementById('sortSel').value;
   const sorted=[...DATA].sort((a,b)=>b[sortKey]-a[sortKey]);
-  let html=`<table id="allClientsTable"><thead><tr><th>Client</th><th class="r">Revenue</th><th class="r">Gross Profit</th><th class="r">GP%</th><th class="r">EBITDA</th><th class="r">EBITDA%</th><th class="r">FX Gain</th><th class="r">Net Profit</th><th class="r">NP%</th><th class="c">FTE</th><th class="c">HC Trend</th><th class="c">HC Status</th><th>Flags</th></tr></thead><tbody>`;
+  let html=`<table id="allClientsTable"><thead><tr><th>Client</th><th class="r">Revenue</th><th class="r">Gross Profit</th><th class="r">GP%</th><th class="r">EBITDA</th><th class="r">EBITDA%</th><th class="r">FX Gain</th><th class="r">Net Profit</th><th class="r">NP%</th><th class="c">FTE</th><th class="c">HC Trend</th><th class="c">HC Status</th><th>Remarks</th></tr></thead><tbody>`;
   sorted.forEach(d=>{
     const hc=getHC(d.client);const fte=hc?hc.hc[HC_MONTHS.length-1]:null;
     const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
@@ -966,7 +965,7 @@ function printClient(name){
 
 // ── Export CSV ──
 function exportCSV(){
-  const rows=[['Client','Revenue','Gross Profit','GP Margin %','EBITDA','EBITDA Margin %','FX Gains','Net Profit','NP Margin %','FTE','HC Status','Action Flags']];
+  const rows=[['Client','Revenue','Gross Profit','GP Margin %','EBITDA','EBITDA Margin %','FX Gains','Net Profit','NP Margin %','FTE','HC Status','Remarks']];
   DATA.forEach(d=>{
     const hc=getHC(d.client);
     rows.push([d.client,d.revenue.toFixed(2),d.gross_profit.toFixed(2),d.gp_margin.toFixed(2),d.ebitda.toFixed(2),d.ebitda_margin.toFixed(2),Math.abs(d.forex).toFixed(2),d.net_profit.toFixed(2),d.np_margin.toFixed(2),hc?hc.hc[HC_MONTHS.length-1]:'',hc?hc.tag:'',d.flags.map(f=>f.label).join('; ')]);
