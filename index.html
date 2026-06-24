@@ -641,12 +641,20 @@ function buildAtRisk(){
     </div>`).join('');
 }
 
+// ── Remarks: auto-flags + manual note combined ──
+function renderRemarks(d){
+  const pills=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
+  const note=(CLIENT_NOTES[d.client]||'').trim();
+  if(!pills&&!note)return'—';
+  const notePart=note?`<span style="font-size:10px;color:var(--muted);display:block;margin-top:${pills?'4':'0'}px;line-height:1.4;white-space:pre-wrap">${note.length>120?note.slice(0,120)+'…':note}</span>`:'';
+  return pills+notePart;
+}
+
 function renderAtRiskFull(){
   const ar=DATA.filter(d=>d.revenue>0&&d.ebitda<0).sort((a,b)=>a.ebitda-b.ebitda);
   let html=`<table><thead><tr><th>Client</th><th class="r">Revenue</th><th class="r">Gross Profit</th><th class="r">GP%</th><th class="r">EBITDA</th><th class="r">EBITDA%</th><th class="r">Net Profit</th><th>Remarks</th></tr></thead><tbody>`;
   ar.forEach(d=>{
-    const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
-    html+=`<tr onclick="openModal('${d.client}')"><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="color:${d.gross_profit<0?'var(--red)':'inherit'}">${fmt(d.gross_profit)}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r" style="color:var(--red);font-weight:700">${fmt(d.ebitda)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r" style="color:${d.net_profit<0?'var(--red)':'inherit'}">${fmt(d.net_profit)}</td><td>${flags||'—'}</td></tr>`;
+    html+=`<tr onclick="openModal('${d.client}')"><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="color:${d.gross_profit<0?'var(--red)':'inherit'}">${fmt(d.gross_profit)}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r" style="color:var(--red);font-weight:700">${fmt(d.ebitda)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r" style="color:${d.net_profit<0?'var(--red)':'inherit'}">${fmt(d.net_profit)}</td><td>${renderRemarks(d)}</td></tr>`;
   });
   html+='</tbody></table>';
   document.getElementById('atRiskFullTable').innerHTML=html;
@@ -687,8 +695,7 @@ function renderOverviewTop10(metric){
   let html=`<table><thead><tr><th>#</th><th>Client</th><th class="r">Revenue</th><th class="r">${lblMap[metric]}</th><th class="r">GP%</th><th class="r">EBITDA%</th><th class="r">NP%</th><th>Remarks</th></tr></thead><tbody>`;
   sorted.forEach((d,i)=>{
     const rc=i===0?'g':i===1?'s':i===2?'b':'';
-    const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
-    html+=`<tr onclick="openModal('${d.client}')"><td><span class="rank ${rc}">${i+1}</span></td><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="font-weight:700;color:${d[mKey]<0?'var(--red)':'var(--green)'}">${fmtFull(d[mKey])}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r">${pillPct(d.np_margin)}</td><td>${flags||'—'}</td></tr>`;
+    html+=`<tr onclick="openModal('${d.client}')"><td><span class="rank ${rc}">${i+1}</span></td><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="font-weight:700;color:${d[mKey]<0?'var(--red)':'var(--green)'}">${fmtFull(d[mKey])}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r">${pillPct(d.np_margin)}</td><td>${renderRemarks(d)}</td></tr>`;
   });
   html+='</tbody></table>';
   const wrap=document.getElementById('overviewTop10Wrap');
@@ -769,8 +776,7 @@ function renderTop10(metric){
   let html=`<table><thead><tr><th>#</th><th>Client</th><th class="r">Revenue</th><th class="r">${lblMap[metric]}</th><th class="r">GP%</th><th class="r">EBITDA%</th><th class="r">NP%</th><th>Remarks</th></tr></thead><tbody>`;
   sorted.forEach((d,i)=>{
     const rc=i===0?'g':i===1?'s':i===2?'b':'';
-    const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
-    html+=`<tr onclick="openModal('${d.client}')"><td><span class="rank ${rc}">${i+1}</span></td><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="font-weight:700;color:${d[mKey]<0?'var(--red)':'var(--green)'}">${fmtFull(d[mKey])}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r">${pillPct(d.np_margin)}</td><td>${flags||'—'}</td></tr>`;
+    html+=`<tr onclick="openModal('${d.client}')"><td><span class="rank ${rc}">${i+1}</span></td><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="font-weight:700;color:${d[mKey]<0?'var(--red)':'var(--green)'}">${fmtFull(d[mKey])}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r">${pillPct(d.np_margin)}</td><td>${renderRemarks(d)}</td></tr>`;
   });
   html+='</tbody></table>';
   document.getElementById('top10TableWrap').innerHTML=html;
@@ -791,8 +797,7 @@ function renderFullTable(){
   let html=`<table id="allClientsTable"><thead><tr><th>Client</th><th class="r">Revenue</th><th class="r">Gross Profit</th><th class="r">GP%</th><th class="r">EBITDA</th><th class="r">EBITDA%</th><th class="r">FX Gain</th><th class="r">Net Profit</th><th class="r">NP%</th><th class="c">FTE</th><th class="c">HC Trend</th><th class="c">HC Status</th><th>Remarks</th></tr></thead><tbody>`;
   sorted.forEach(d=>{
     const hc=getHC(d.client);const fte=hc?hc.hc[HC_MONTHS.length-1]:null;
-    const flags=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
-    html+=`<tr onclick="openModal('${d.client}')"><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="color:${d.gross_profit<0?'var(--red)':'inherit'}">${fmt(d.gross_profit)}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r" style="color:${d.ebitda<0?'var(--red)':'inherit'}">${fmt(d.ebitda)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r" style="color:var(--blue)">${fmt(Math.abs(d.forex))}</td><td class="r" style="color:${d.net_profit<0?'var(--red)':'inherit'};font-weight:700">${fmt(d.net_profit)}</td><td class="r">${pillPct(d.np_margin)}</td><td class="c" style="font-weight:700">${fte!==null?fte:'—'}</td><td class="c">${sparkSVG(hc?hc.hc:null)}</td><td class="c">${hc?`<span class="hc-tag ${hcTagClass(hc.tag)}">${hcTagLabel(hc.tag)}</span>`:'—'}</td><td>${flags||'—'}</td></tr>`;
+    html+=`<tr onclick="openModal('${d.client}')"><td><strong>${d.client}</strong></td><td class="r">${fmt(d.revenue)}</td><td class="r" style="color:${d.gross_profit<0?'var(--red)':'inherit'}">${fmt(d.gross_profit)}</td><td class="r">${pillPct(d.gp_margin)}</td><td class="r" style="color:${d.ebitda<0?'var(--red)':'inherit'}">${fmt(d.ebitda)}</td><td class="r">${pillPct(d.ebitda_margin)}</td><td class="r" style="color:var(--blue)">${fmt(Math.abs(d.forex))}</td><td class="r" style="color:${d.net_profit<0?'var(--red)':'inherit'};font-weight:700">${fmt(d.net_profit)}</td><td class="r">${pillPct(d.np_margin)}</td><td class="c" style="font-weight:700">${fte!==null?fte:'—'}</td><td class="c">${sparkSVG(hc?hc.hc:null)}</td><td class="c">${hc?`<span class="hc-tag ${hcTagClass(hc.tag)}">${hcTagLabel(hc.tag)}</span>`:'—'}</td><td>${renderRemarks(d)}</td></tr>`;
   });
   html+='</tbody></table>';
   document.getElementById('fullTableWrap').innerHTML=html;
@@ -953,6 +958,15 @@ function saveClientNote(name){
   CLIENT_NOTES[name]=document.getElementById('noteFor_'+name).value;
   // Persist all client notes
   try{localStorage.setItem('atticus_client_notes',JSON.stringify(CLIENT_NOTES));}catch(e){}
+  // Refresh the active table so the new note appears in Remarks immediately
+  const activePage=document.querySelector('.page.active');
+  if(activePage){
+    const id=activePage.id;
+    if(id==='page-overview'){renderOverviewTop10(document.querySelector('#overviewTop10Tabs .tab-btn.active')?.textContent?.includes('EBITDA')?'ebitda':document.querySelector('#overviewTop10Tabs .tab-btn.active')?.textContent?.includes('Net')?'np':'gp');}
+    if(id==='page-profitability'){renderTop10(document.querySelector('#page-profitability .tab-btn.active')?.textContent?.includes('EBITDA')?'ebitda':document.querySelector('#page-profitability .tab-btn.active')?.textContent?.includes('Net')?'np':'gp');}
+    if(id==='page-clients')renderFullTable();
+    if(id==='page-atrisk')renderAtRiskFull();
+  }
   const el=document.getElementById('noteSavedFor_'+name);
   el.style.display='inline';setTimeout(()=>el.style.display='none',2000);
 }
@@ -968,7 +982,10 @@ function exportCSV(){
   const rows=[['Client','Revenue','Gross Profit','GP Margin %','EBITDA','EBITDA Margin %','FX Gains','Net Profit','NP Margin %','FTE','HC Status','Remarks']];
   DATA.forEach(d=>{
     const hc=getHC(d.client);
-    rows.push([d.client,d.revenue.toFixed(2),d.gross_profit.toFixed(2),d.gp_margin.toFixed(2),d.ebitda.toFixed(2),d.ebitda_margin.toFixed(2),Math.abs(d.forex).toFixed(2),d.net_profit.toFixed(2),d.np_margin.toFixed(2),hc?hc.hc[HC_MONTHS.length-1]:'',hc?hc.tag:'',d.flags.map(f=>f.label).join('; ')]);
+    const note=(CLIENT_NOTES[d.client]||'').trim();
+    const flagLabels=d.flags.map(f=>f.label).join('; ');
+    const remarks=[flagLabels,note].filter(Boolean).join(' | ');
+    rows.push([d.client,d.revenue.toFixed(2),d.gross_profit.toFixed(2),d.gp_margin.toFixed(2),d.ebitda.toFixed(2),d.ebitda_margin.toFixed(2),Math.abs(d.forex).toFixed(2),d.net_profit.toFixed(2),d.np_margin.toFixed(2),hc?hc.hc[HC_MONTHS.length-1]:'',hc?hc.tag:'',remarks]);
   });
   const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='Atticus_Client_Profitability_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
