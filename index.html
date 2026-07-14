@@ -278,6 +278,7 @@ tbody td.c{text-align:center}
         🗑 Reset saved data
       </button>
     </div>
+    <div id="jbStatusBar" style="display:none;font-size:10px;padding:4px 6px;border-radius:4px;background:rgba(255,255,255,.08);margin-top:6px;text-align:center"></div>
   </div>
 </nav>
 
@@ -1058,100 +1059,85 @@ function exportCSV(){
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  JSONBIN — shared notes storage (replace key after signing up at jsonbin.io)
-//  1. Sign up free at https://jsonbin.io
-//  2. Go to API Keys → copy your Secret Key (starts with $2b$...)
-//  3. Replace YOUR_JSONBIN_API_KEY below with your actual key
-//  4. On first run the dashboard will auto-create the bin and save the ID
+//  JSONBIN — shared notes (bin ID hardcoded — same for ALL users)
 // ══════════════════════════════════════════════════════════════════
-const JSONBIN_KEY  = '$2a$10$KRzvEyeQcVEQN/EQO0Y7v.SGMwJnSVyxTWsbL8Lntv.2YY/uHuxnK';
-const JSONBIN_BASE = 'https://api.jsonbin.io/v3';
-// ── Shared bin ID — hardcoded so ALL users read from the same bin ──
-let JSONBIN_BIN_ID = '6a3b5b0bf5f4af5e2926e332';
-let _savePending   = false;
+const JSONBIN_KEY    = '$2a$10$KRzvEyeQcVEQN/EQO0Y7v.SGMwJnSVyxTWsbL8Lntv.2YY/uHuxnK';
+const JSONBIN_BASE   = 'https://api.jsonbin.io/v3';
+const JSONBIN_BIN_ID = '6a3b5b0bf5f4af5e2926e332';
+let   _savePending   = false;
+let   _pollTimer     = null;
 
-// ── Get bin ID — always returns the hardcoded shared bin ──
-async function jbEnsureId(){
-  return JSONBIN_BIN_ID;
+function jbStatus(msg, color){
+  const el = document.getElementById('jbStatusBar');
+  if(!el) return;
+  el.textContent  = msg;
+  el.style.color  = color||'#7abe7a';
+  el.style.display= msg ? 'block' : 'none';
 }
-function jbGetId(){ return JSONBIN_BIN_ID; }
-function jbSetId(id){ JSONBIN_BIN_ID = id; try{ localStorage.setItem('atticus_jb_id', id); }catch(e){} }
 
-// ── Read all shared notes from JSONBin ──
+// ── Load notes from JSONBin — called on open + every 30s ──
 async function jbLoad(){
-  if(JSONBIN_KEY === 'YOUR_JSONBIN_API_KEY') return;
   try{
-    const id = await jbEnsureId();
-    if(!id){ await jbCreate(); return; }
-    const res = await fetch(`${JSONBIN_BASE}/b/${id}/latest`, {
-      headers:{ 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' }
-    });
-    if(!res.ok) throw new Error(res.status);
-    const data = await res.json();
-    if(data && typeof data === 'object' && !Array.isArray(data)){
-      // Merge: remote wins over local so shared notes always show
-      Object.assign(CLIENT_NOTES, data);
-      // Also update localStorage with latest from server
-      try{ localStorage.setItem('atticus_client_notes', JSON.stringify(CLIENT_NOTES)); }catch(e){}
-      refreshAllTables();
+    const res = await fetch(
+      JSONBIN_BASE+'/b/'+JSONBIN_BIN_ID+'/latest',
+      { headers:{ 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' } }
+    );
+    if(!res.ok){ jbStatus('⚠ Sync error '+res.status,'#e6a000'); return; }
+    const remote = await res.json();
+    if(remote && typeof remote==='object' && !Array.isArray(remote)){
+      const hasContent = Object.values(remote).some(v=>v);
+      if(hasContent){
+        // Remote wins — overwrite local so all users see the same notes
+        Object.keys(CLIENT_NOTES).forEach(k=>delete CLIENT_NOTES[k]);
+        Object.assign(CLIENT_NOTES, remote);
+        try{ localStorage.setItem('atticus_client_notes', JSON.stringify(CLIENT_NOTES)); }catch(e){}
+        refreshAllTables();
+      }
+      jbStatus('✓ Notes synced','#7abe7a');
+      setTimeout(()=>jbStatus(''), 3000);
     }
   }catch(e){
-    console.warn('JSONBin load failed — using local notes:', e);
+    jbStatus('⚠ Offline — notes saved locally only','#e6a000');
+    console.warn('jbLoad failed:',e);
   }
 }
 
-// ── Create a new bin on first use ──
-async function jbCreate(){
-  if(JSONBIN_KEY === 'YOUR_JSONBIN_API_KEY') return;
-  try{
-    const res = await fetch(`${JSONBIN_BASE}/b`, {
-      method: 'POST',
-      headers:{
-        'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_KEY,
-        'X-Bin-Name': 'atticus-client-notes',
-        'X-Bin-Private': 'true'
-      },
-      body: JSON.stringify(CLIENT_NOTES)
-    });
-    if(!res.ok) throw new Error(res.status);
-    const data = await res.json();
-    const newId = data.metadata?.id || data.record?.id || data.id;
-    if(newId) jbSetId(newId);
-    console.log('JSONBin bin created:', newId);
-  }catch(e){
-    console.warn('JSONBin create failed:', e);
-  }
-}
-
-// ── Save all notes to JSONBin (debounced 800ms) ──
-function jbSave(){
-  if(JSONBIN_KEY === 'YOUR_JSONBIN_API_KEY') return;
+// ── Save all notes to JSONBin (debounced 600ms) ──
+async function jbSave(){
   if(_savePending) return;
   _savePending = true;
   const syncEl = document.getElementById('jbSyncStatus');
   if(syncEl){ syncEl.textContent='🔄 Syncing…'; syncEl.style.display='inline'; }
-  setTimeout(async ()=>{
+  jbStatus('🔄 Saving notes…','#a8d890');
+  setTimeout(async()=>{
     _savePending = false;
-    const id = await jbEnsureId();
-    if(!id){ await jbCreate(); return; }
     try{
-      const res = await fetch(`${JSONBIN_BASE}/b/${id}`, {
-        method: 'PUT',
-        headers:{
-          'Content-Type': 'application/json',
-          'X-Master-Key': JSONBIN_KEY
-        },
-        body: JSON.stringify(CLIENT_NOTES)
-      });
-      if(!res.ok) throw new Error(res.status);
-      if(syncEl){ syncEl.textContent='✓ Synced'; setTimeout(()=>syncEl.style.display='none',2000); }
+      const res = await fetch(
+        JSONBIN_BASE+'/b/'+JSONBIN_BIN_ID,
+        {
+          method: 'PUT',
+          headers:{ 'Content-Type':'application/json', 'X-Master-Key': JSONBIN_KEY },
+          body: JSON.stringify(CLIENT_NOTES)
+        }
+      );
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      if(syncEl){ syncEl.textContent='✓ Saved & synced'; setTimeout(()=>syncEl.style.display='none',3000); }
+      jbStatus('✓ Saved — visible to all users','#7abe7a');
+      setTimeout(()=>jbStatus(''), 4000);
     }catch(e){
-      console.warn('JSONBin save failed — note saved locally only:', e);
-      if(syncEl){ syncEl.textContent='⚠ Sync failed (saved locally)'; setTimeout(()=>syncEl.style.display='none',3000); }
+      console.warn('jbSave failed:',e);
+      if(syncEl){ syncEl.textContent='⚠ Sync failed (saved locally)'; setTimeout(()=>syncEl.style.display='none',4000); }
+      jbStatus('⚠ Could not sync — saved locally only','#e6a000');
     }
-  }, 800);
+  }, 600);
 }
+
+// ── Poll every 30s so other users see updates without refresh ──
+function jbStartPolling(){
+  if(_pollTimer) clearInterval(_pollTimer);
+  _pollTimer = setInterval(jbLoad, 30000);
+}
+
 
 // ── Refresh all visible tables after notes load ──
 function refreshAllTables(){
@@ -1244,6 +1230,7 @@ function init(){
 
   // Then fetch shared notes from JSONBin (overrides local if set)
   jbLoad();
+  jbStartPolling();
 }
 init();
 </script>
