@@ -1087,10 +1087,17 @@ async function jbLoad(){
     if(remote && typeof remote==='object' && !Array.isArray(remote)){
       const hasContent = Object.values(remote).some(v=>v);
       if(hasContent){
-        // Remote wins — overwrite local so all users see the same notes
+        // Remote wins — clear local and apply remote
         Object.keys(CLIENT_NOTES).forEach(k=>delete CLIENT_NOTES[k]);
         Object.assign(CLIENT_NOTES, remote);
         try{ localStorage.setItem('atticus_client_notes', JSON.stringify(CLIENT_NOTES)); }catch(e){}
+        // Populate commentary textareas if they exist
+        const pn = document.getElementById('periodNotes');
+        const an = document.getElementById('actionNotes');
+        if(pn && CLIENT_NOTES['__period_notes__'] !== undefined)
+          pn.value = CLIENT_NOTES['__period_notes__'];
+        if(an && CLIENT_NOTES['__action_notes__'] !== undefined)
+          an.value = CLIENT_NOTES['__action_notes__'];
         refreshAllTables();
       }
       jbStatus('✓ Notes synced','#7abe7a');
@@ -1151,21 +1158,20 @@ function refreshAllTables(){
   if(id==='page-mustkeep')  renderMustKeep(_mkFilter);
 }
 
-// ── Notes UI ──
+// ── Notes UI — Commentary tab ──
 function saveNotes(){
+  // Save to JSONBin (shared) — all users will see this
+  CLIENT_NOTES['__period_notes__']  = document.getElementById('periodNotes').value;
+  CLIENT_NOTES['__action_notes__']  = document.getElementById('actionNotes').value;
+  // Also persist locally as fallback
   try{
-    localStorage.setItem('atticus_period_notes', document.getElementById('periodNotes').value);
-    localStorage.setItem('atticus_action_notes', document.getElementById('actionNotes').value);
+    localStorage.setItem('atticus_period_notes', CLIENT_NOTES['__period_notes__']);
+    localStorage.setItem('atticus_action_notes', CLIENT_NOTES['__action_notes__']);
   }catch(e){}
+  jbSave();
   const el=document.getElementById('notesSaved');
   el.style.display='inline'; setTimeout(()=>el.style.display='none', 2500);
 }
-document.getElementById('periodNotes').addEventListener('input',()=>{
-  try{localStorage.setItem('atticus_period_notes', document.getElementById('periodNotes').value);}catch(e){}
-});
-document.getElementById('actionNotes').addEventListener('input',()=>{
-  try{localStorage.setItem('atticus_action_notes', document.getElementById('actionNotes').value);}catch(e){}
-});
 // ── Clear saved data ──
 function clearSavedData(){
   if(!confirm('This will clear all saved Xero data, HC data, and notes from this browser.\n\nThe dashboard will revert to the hardcoded defaults. Continue?'))return;
@@ -1222,13 +1228,16 @@ function init(){
   // Render everything with local data first
   updateKPIs();buildOverviewCharts();buildAtRisk();buildConcentrationWarning();renderTop10('gp');
 
-  // Load commentary
+  // Pre-populate commentary from localStorage while JSONBin loads (fallback)
   try{
-    document.getElementById('periodNotes').value=localStorage.getItem('atticus_period_notes')||'';
-    document.getElementById('actionNotes').value=localStorage.getItem('atticus_action_notes')||'';
+    const pn=document.getElementById('periodNotes');
+    const an=document.getElementById('actionNotes');
+    // Check CLIENT_NOTES first (from localStorage load above), then raw localStorage
+    if(pn) pn.value = CLIENT_NOTES['__period_notes__'] || localStorage.getItem('atticus_period_notes') || '';
+    if(an) an.value = CLIENT_NOTES['__action_notes__'] || localStorage.getItem('atticus_action_notes') || '';
   }catch(e){}
 
-  // Then fetch shared notes from JSONBin (overrides local if set)
+  // Then fetch everything from JSONBin — overwrites local with shared data
   jbLoad();
   jbStartPolling();
 }
