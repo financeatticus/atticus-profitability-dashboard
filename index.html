@@ -202,7 +202,7 @@ tbody td.c{text-align:center}
 <!-- TOP BAR -->
 <div class="top-bar">
   <div class="logo">Atticus Advisory Solutions</div>
-  <div class="period" id="topPeriod">For the 5 months ended 31 May 2026</div>
+  <div class="period" id="topPeriod">For the 6 months ended 30 June 2026</div>
   <div class="spacer"></div>
   <button class="btn outline" onclick="exportCSV()" style="margin-right:4px">⬇ Export CSV</button>
   <div class="badge">Powered by Xero</div>
@@ -235,6 +235,10 @@ tbody td.c{text-align:center}
   <div class="nav-item" id="nav-atrisk" onclick="nav('atrisk',this)">
     <span class="icon">⚠️</span><span class="label">At-Risk</span>
     <span class="badge-count" id="atRiskCount">—</span>
+  </div>
+  <div class="nav-item" id="nav-mustkeep" onclick="nav('mustkeep',this)">
+    <span class="icon">⭐</span><span class="label">Must Keep</span>
+    <span class="badge-count" id="mustKeepCount" style="background:#1a5c28;color:#fff">—</span>
   </div>
   <div class="nav-item" onclick="nav('insights',this)">
     <span class="icon">🔍</span><span class="label">Insights</span>
@@ -282,7 +286,7 @@ tbody td.c{text-align:center}
   <!-- Search/filter bar -->
   <div class="content-bar">
     <input type="text" class="search-box" id="searchInput" placeholder="🔍 Search clients…" oninput="applyFilters()">
-    <span class="period-badge" id="periodInfo">Data as at 31 May 2026</span>
+    <span class="period-badge" id="periodInfo">Data as at 30 June 2026</span>
   </div>
 
   <!-- ══ PAGE: OVERVIEW ══ -->
@@ -357,7 +361,7 @@ tbody td.c{text-align:center}
   <!-- ══ PAGE: HEADCOUNT ══ -->
   <div class="page" id="page-headcount">
     <div class="kpi-strip" style="grid-template-columns:repeat(5,1fr)">
-      <div class="kpi accent"><div class="kpi-lbl">Total FTEs</div><div class="kpi-val" id="hcTotal">472</div><div class="kpi-sub" id="hcChange">vs prior month</div></div>
+      <div class="kpi accent"><div class="kpi-lbl">Total FTEs</div><div class="kpi-val" id="hcTotal">477</div><div class="kpi-sub" id="hcChange">vs prior month</div></div>
       <div class="kpi"><div class="kpi-lbl">Growing</div><div class="kpi-val" style="color:var(--green)" id="hcGrowing">—</div><div class="kpi-sub">Net HC increase</div></div>
       <div class="kpi"><div class="kpi-lbl">Declining</div><div class="kpi-val" style="color:var(--red)" id="hcDeclining">—</div><div class="kpi-sub">Immediate attention</div></div>
       <div class="kpi"><div class="kpi-lbl">Dormant / Stable</div><div class="kpi-val" style="color:#7a5500" id="hcDormant">—</div><div class="kpi-sub">No growth momentum</div></div>
@@ -429,6 +433,33 @@ tbody td.c{text-align:center}
     </div>
   </div>
 
+  <!-- ══ PAGE: MUST KEEP ══ -->
+  <div class="page" id="page-mustkeep">
+    <div style="background:#f0fbe8;border:1.5px solid #7abe7a;border-radius:8px;padding:12px 18px;margin-bottom:16px">
+      <strong style="color:var(--green);font-size:13px">⭐ Must Keep Clients</strong>
+      <span style="font-size:12px;color:var(--muted);margin-left:8px">High-value clients critical to portfolio health — top revenue contributors, high-margin accounts, and long-term anchors that must be protected and prioritised.</span>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">
+        <span class="left">📊 Must Keep Summary</span>
+      </div>
+      <div id="mustKeepKPIs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:0"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        <span class="left">⭐ Must Keep Client List</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:11px;color:var(--muted);font-weight:700">Criteria:</span>
+          <button class="tab-btn active" onclick="filterMustKeep('all',this)" style="padding:3px 10px;font-size:11px">All</button>
+          <button class="tab-btn" onclick="filterMustKeep('revenue',this)" style="padding:3px 10px;font-size:11px">Top Revenue</button>
+          <button class="tab-btn" onclick="filterMustKeep('margin',this)" style="padding:3px 10px;font-size:11px">High Margin</button>
+          <button class="tab-btn" onclick="filterMustKeep('np',this)" style="padding:3px 10px;font-size:11px">Top Net Profit</button>
+        </div>
+      </div>
+      <div class="tbl-wrap" id="mustKeepTable"></div>
+    </div>
+  </div>
+
   <!-- ══ PAGE: INSIGHTS ══ -->
   <div class="page" id="page-insights">
     <div class="card">
@@ -489,78 +520,14 @@ function nav(page, el) {
   if (page === 'headcount') buildHCSection();
   if (page === 'clients') renderFullTable();
   if (page === 'atrisk') renderAtRiskFull();
+  if (page === 'mustkeep') renderMustKeep('all');
   if (page === 'insights') buildInsights();
 }
 
 // ── Data ──
-const RAW_DATA=[{"client":"311 CLOUD","revenue":1607224.69,"gross_profit":198857.23,"gp_margin":12.37,"ebitda":144526.97,"ebitda_margin":8.99,"forex":-149717.08,"net_profit":294244.05,"np_margin":18.31},{"client":"APHOBOS","revenue":386417.49,"gross_profit":203784.79,"gp_margin":52.74,"ebitda":-423079.13,"ebitda_margin":-109.49,"forex":-22060.96,"net_profit":-401018.17,"np_margin":-103.78},{"client":"ASG","revenue":1073058.38,"gross_profit":357997.62,"gp_margin":33.36,"ebitda":259885.16,"ebitda_margin":24.22,"forex":-71591.5,"net_profit":331476.66,"np_margin":30.89},{"client":"ASHOKAN","revenue":1400498.29,"gross_profit":210700.94,"gp_margin":15.04,"ebitda":-381630.45,"ebitda_margin":-27.25,"forex":-149896.62,"net_profit":-231733.83,"np_margin":-16.55},{"client":"AVANO","revenue":8136055.33,"gross_profit":1213564.7,"gp_margin":14.92,"ebitda":815642.61,"ebitda_margin":10.03,"forex":35326.4,"net_profit":780316.21,"np_margin":9.59},{"client":"BEPOZ","revenue":29624221.59,"gross_profit":4035841.15,"gp_margin":13.62,"ebitda":2402756.2,"ebitda_margin":8.11,"forex":-2543642.6,"net_profit":4946398.8,"np_margin":16.7},{"client":"BEZOS AI","revenue":690653.18,"gross_profit":217966.54,"gp_margin":31.56,"ebitda":152730.02,"ebitda_margin":22.11,"forex":-66777.07,"net_profit":219507.09,"np_margin":31.78},{"client":"BLUEBIRD","revenue":211044.44,"gross_profit":83544.44,"gp_margin":39.59,"ebitda":83544.44,"ebitda_margin":39.59,"forex":1150.74,"net_profit":82393.7,"np_margin":39.04},{"client":"BLUEBRIDGE ONE","revenue":1217993.05,"gross_profit":147669.81,"gp_margin":12.12,"ebitda":102094.09,"ebitda_margin":8.38,"forex":0.0,"net_profit":102094.09,"np_margin":8.38},{"client":"BLUECOLLAR","revenue":19633824.5,"gross_profit":2712974.22,"gp_margin":13.82,"ebitda":2066817.74,"ebitda_margin":10.53,"forex":-1894676.0,"net_profit":3961493.74,"np_margin":20.18},{"client":"BOARD INTERNATIONAL","revenue":2491851.98,"gross_profit":889100.7,"gp_margin":35.68,"ebitda":-38429.71,"ebitda_margin":-1.54,"forex":-143654.04,"net_profit":105224.33,"np_margin":4.22},{"client":"BPM","revenue":34431302.47,"gross_profit":3335654.49,"gp_margin":9.69,"ebitda":2412710.68,"ebitda_margin":7.01,"forex":-1067004.42,"net_profit":3479715.1,"np_margin":10.11},{"client":"BRIGHTFIN","revenue":15552313.84,"gross_profit":3400005.44,"gp_margin":21.86,"ebitda":2614760.93,"ebitda_margin":16.81,"forex":-1306727.11,"net_profit":3921488.04,"np_margin":25.21},{"client":"BRING IT","revenue":15086728.67,"gross_profit":1095655.29,"gp_margin":7.26,"ebitda":555418.84,"ebitda_margin":3.68,"forex":-1652105.5,"net_profit":2207524.34,"np_margin":14.63},{"client":"BUSINESS SOLUTION PARTNERS","revenue":619361.6,"gross_profit":619361.6,"gp_margin":100.0,"ebitda":619361.6,"ebitda_margin":100.0,"forex":-3680.16,"net_profit":623041.76,"np_margin":100.59},{"client":"CIRRUS ERP","revenue":5494498.75,"gross_profit":2211889.95,"gp_margin":40.26,"ebitda":1717393.67,"ebitda_margin":31.26,"forex":-126500.09,"net_profit":1843893.76,"np_margin":33.56},{"client":"CLOUD CULTURE","revenue":2346359.56,"gross_profit":308239.82,"gp_margin":13.14,"ebitda":251610.9,"ebitda_margin":10.72,"forex":-470368.91,"net_profit":721979.81,"np_margin":30.77},{"client":"COGNIGY","revenue":1548833.52,"gross_profit":841364.84,"gp_margin":54.32,"ebitda":658034.87,"ebitda_margin":42.49,"forex":-93057.65,"net_profit":751092.52,"np_margin":48.49},{"client":"KIT","revenue":26638852.91,"gross_profit":9269468.71,"gp_margin":34.8,"ebitda":7057515.21,"ebitda_margin":26.49,"forex":-611569.58,"net_profit":7669084.79,"np_margin":28.79},{"client":"CYBEROPS","revenue":49396.33,"gross_profit":-16839.43,"gp_margin":-34.09,"ebitda":-115426.84,"ebitda_margin":-233.67,"forex":-1883.03,"net_profit":-113543.81,"np_margin":-229.86},{"client":"CYTHERA","revenue":571695.28,"gross_profit":189721.92,"gp_margin":33.19,"ebitda":158093.18,"ebitda_margin":27.65,"forex":-98950.92,"net_profit":257044.1,"np_margin":44.96},{"client":"DOOZY","revenue":0.0,"gross_profit":0.0,"gp_margin":0,"ebitda":-30548.76,"ebitda_margin":0,"forex":0.0,"net_profit":-30548.76,"np_margin":0},{"client":"DTSANZ","revenue":3218736.41,"gross_profit":650142.52,"gp_margin":20.2,"ebitda":480606.29,"ebitda_margin":14.93,"forex":-40178.15,"net_profit":520784.44,"np_margin":16.18},{"client":"DYNED","revenue":199867.85,"gross_profit":34007.82,"gp_margin":17.02,"ebitda":27547.39,"ebitda_margin":13.78,"forex":-58165.16,"net_profit":85712.55,"np_margin":42.88},{"client":"EAGLE","revenue":1054075.95,"gross_profit":477562.61,"gp_margin":45.31,"ebitda":477562.61,"ebitda_margin":45.31,"forex":-13858.69,"net_profit":491421.3,"np_margin":46.62},{"client":"EKWANI","revenue":26526973.7,"gross_profit":4073473.36,"gp_margin":15.36,"ebitda":3292555.1,"ebitda_margin":12.41,"forex":-2623572.3,"net_profit":5916127.4,"np_margin":22.3},{"client":"ELIVE","revenue":2642268.36,"gross_profit":712837.41,"gp_margin":26.98,"ebitda":543930.62,"ebitda_margin":20.59,"forex":-315035.68,"net_profit":858966.3,"np_margin":32.51},{"client":"EXILE","revenue":664992.2,"gross_profit":167933.54,"gp_margin":25.25,"ebitda":106954.6,"ebitda_margin":16.08,"forex":-47180.93,"net_profit":154135.53,"np_margin":23.18},{"client":"FLEXXUS","revenue":296079.55,"gross_profit":235658.51,"gp_margin":79.59,"ebitda":82106.64,"ebitda_margin":27.73,"forex":-10693.27,"net_profit":92799.91,"np_margin":31.34},{"client":"FORUM","revenue":1405706.55,"gross_profit":573348.05,"gp_margin":40.79,"ebitda":423764.6,"ebitda_margin":30.15,"forex":-168645.31,"net_profit":592409.91,"np_margin":42.14},{"client":"GOLD BOND","revenue":1311473.62,"gross_profit":95228.09,"gp_margin":7.26,"ebitda":-78019.41,"ebitda_margin":-5.95,"forex":-125740.7,"net_profit":47721.29,"np_margin":3.64},{"client":"GOLF SWAG","revenue":640150.65,"gross_profit":276656.28,"gp_margin":43.22,"ebitda":222980.4,"ebitda_margin":34.83,"forex":-43628.23,"net_profit":266608.63,"np_margin":41.65},{"client":"HCGLOBAL","revenue":0.0,"gross_profit":0.0,"gp_margin":0,"ebitda":-30548.76,"ebitda_margin":0,"forex":0.0,"net_profit":-30548.76,"np_margin":0},{"client":"HUM","revenue":336670.13,"gross_profit":336670.13,"gp_margin":100.0,"ebitda":278070.84,"ebitda_margin":82.59,"forex":31505.02,"net_profit":246565.82,"np_margin":73.24},{"client":"JACKSON","revenue":555459.89,"gross_profit":263390.93,"gp_margin":47.42,"ebitda":9316.14,"ebitda_margin":1.68,"forex":6431.74,"net_profit":2884.4,"np_margin":0.52},{"client":"KIMBERLITE","revenue":2032277.45,"gross_profit":163973.26,"gp_margin":8.07,"ebitda":-265537.87,"ebitda_margin":-13.07,"forex":-101000.82,"net_profit":-164537.05,"np_margin":-8.1},{"client":"KLUGO","revenue":2943649.6,"gross_profit":268060.53,"gp_margin":9.11,"ebitda":8372.46,"ebitda_margin":0.28,"forex":-479228.49,"net_profit":487600.95,"np_margin":16.56},{"client":"LAMA","revenue":0.0,"gross_profit":-43474.46,"gp_margin":0,"ebitda":-43474.46,"ebitda_margin":0,"forex":0.0,"net_profit":-43474.46,"np_margin":0},{"client":"LANDMARK","revenue":2876129.16,"gross_profit":606949.76,"gp_margin":21.1,"ebitda":444190.5,"ebitda_margin":15.44,"forex":-236673.15,"net_profit":680863.65,"np_margin":23.67},{"client":"LAYER3","revenue":529774.74,"gross_profit":152848.53,"gp_margin":28.85,"ebitda":117521.02,"ebitda_margin":22.18,"forex":-55532.04,"net_profit":173053.06,"np_margin":32.67},{"client":"MAAS ENERGY","revenue":1589272.17,"gross_profit":527146.73,"gp_margin":33.17,"ebitda":472705.59,"ebitda_margin":29.74,"forex":-167664.32,"net_profit":640369.91,"np_margin":40.29},{"client":"MACROFIN","revenue":30347218.99,"gross_profit":3940098.51,"gp_margin":12.98,"ebitda":3121265.83,"ebitda_margin":10.29,"forex":-850729.73,"net_profit":3971995.56,"np_margin":13.09},{"client":"MERSIVE","revenue":281099.05,"gross_profit":85274.66,"gp_margin":30.34,"ebitda":63464.12,"ebitda_margin":22.58,"forex":-18291.92,"net_profit":81756.04,"np_margin":29.08},{"client":"MODULO","revenue":3730137.27,"gross_profit":644098.66,"gp_margin":17.27,"ebitda":421194.96,"ebitda_margin":11.29,"forex":-286598.37,"net_profit":707793.33,"np_margin":18.97},{"client":"MOLLIE","revenue":1733552.7,"gross_profit":333537.85,"gp_margin":19.24,"ebitda":255384.57,"ebitda_margin":14.73,"forex":-249944.98,"net_profit":505329.55,"np_margin":29.15},{"client":"MOSS ADAM","revenue":6817792.89,"gross_profit":1680622.8,"gp_margin":24.65,"ebitda":1470855.63,"ebitda_margin":21.57,"forex":-1015950.01,"net_profit":2486805.64,"np_margin":36.48},{"client":"NET AT WORK","revenue":904354.65,"gross_profit":194192.43,"gp_margin":21.47,"ebitda":144182.48,"ebitda_margin":15.94,"forex":-85605.94,"net_profit":229788.42,"np_margin":25.41},{"client":"NET LOBSTER","revenue":3431714.43,"gross_profit":665001.78,"gp_margin":19.38,"ebitda":349336.2,"ebitda_margin":10.18,"forex":-280260.93,"net_profit":629597.13,"np_margin":18.35},{"client":"NETGAIN","revenue":32549409.98,"gross_profit":7616356.56,"gp_margin":23.4,"ebitda":5496207.52,"ebitda_margin":16.89,"forex":-2795379.06,"net_profit":8291586.58,"np_margin":25.47},{"client":"NUAGE","revenue":30008770.53,"gross_profit":3913237.98,"gp_margin":13.04,"ebitda":2963752.51,"ebitda_margin":9.88,"forex":-815093.8,"net_profit":3778846.31,"np_margin":12.59},{"client":"ONE DEGREE","revenue":2143910.2,"gross_profit":645257.52,"gp_margin":30.1,"ebitda":532018.0,"ebitda_margin":24.82,"forex":-239334.68,"net_profit":771352.68,"np_margin":35.98},{"client":"ONLINEONE","revenue":9899058.07,"gross_profit":1060978.38,"gp_margin":10.72,"ebitda":735786.31,"ebitda_margin":7.43,"forex":-2153768.12,"net_profit":2889554.43,"np_margin":29.19},{"client":"OSI DIGITAL","revenue":32072304.87,"gross_profit":3030764.79,"gp_margin":9.45,"ebitda":2049656.59,"ebitda_margin":6.39,"forex":-3085291.12,"net_profit":5134947.71,"np_margin":16.01},{"client":"PALLADIUM","revenue":3269260.25,"gross_profit":856957.02,"gp_margin":26.21,"ebitda":703433.11,"ebitda_margin":21.52,"forex":-287379.41,"net_profit":990812.52,"np_margin":30.31},{"client":"PEXAPARK","revenue":2704874.71,"gross_profit":504345.77,"gp_margin":18.65,"ebitda":305104.13,"ebitda_margin":11.28,"forex":-219139.04,"net_profit":524243.17,"np_margin":19.38},{"client":"PLAYQ","revenue":636796.18,"gross_profit":171405.14,"gp_margin":26.92,"ebitda":133785.37,"ebitda_margin":21.01,"forex":-21228.32,"net_profit":155013.69,"np_margin":24.34},{"client":"PRIMARY","revenue":225492.02,"gross_profit":102079.35,"gp_margin":45.27,"ebitda":-120951.88,"ebitda_margin":-53.64,"forex":-16823.63,"net_profit":-104128.25,"np_margin":-46.18},{"client":"PRIME MSO","revenue":353.6,"gross_profit":353.6,"gp_margin":100.0,"ebitda":-82735.55,"ebitda_margin":-23398.06,"forex":353.6,"net_profit":-83089.15,"np_margin":-23498.06},{"client":"PRITAM","revenue":220219.56,"gross_profit":-13602.14,"gp_margin":-6.18,"ebitda":-351971.87,"ebitda_margin":-159.83,"forex":7396.72,"net_profit":-359368.59,"np_margin":-163.19},{"client":"RUX","revenue":367190.12,"gross_profit":367190.12,"gp_margin":100.0,"ebitda":367190.12,"ebitda_margin":100.0,"forex":7912.23,"net_profit":359277.89,"np_margin":97.85},{"client":"SANSA","revenue":515199.39,"gross_profit":-247629.85,"gp_margin":-48.06,"ebitda":-363848.68,"ebitda_margin":-70.62,"forex":-154498.42,"net_profit":-209350.26,"np_margin":-40.63},{"client":"SENTRIEN","revenue":1226180.85,"gross_profit":167124.33,"gp_margin":13.63,"ebitda":116842.52,"ebitda_margin":9.53,"forex":-82458.27,"net_profit":199300.79,"np_margin":16.25},{"client":"SERV OP CO","revenue":0.0,"gross_profit":0.0,"gp_margin":0,"ebitda":-30548.76,"ebitda_margin":0,"forex":0.0,"net_profit":-30548.76,"np_margin":0},{"client":"SHWINCO","revenue":0.0,"gross_profit":-446.43,"gp_margin":0,"ebitda":-446.43,"ebitda_margin":0,"forex":0.0,"net_profit":-446.43,"np_margin":0},{"client":"SILK LETTER","revenue":0.0,"gross_profit":-40835.43,"gp_margin":0,"ebitda":-40835.43,"ebitda_margin":0,"forex":-10571.2,"net_profit":-30264.23,"np_margin":0},{"client":"SOLAR","revenue":1174173.35,"gross_profit":266155.89,"gp_margin":22.67,"ebitda":215874.08,"ebitda_margin":18.39,"forex":-111485.24,"net_profit":327359.32,"np_margin":27.88},{"client":"SOLUTIONS CLOUD","revenue":5507167.96,"gross_profit":1476523.99,"gp_margin":26.81,"ebitda":1103507.47,"ebitda_margin":20.04,"forex":-487621.13,"net_profit":1591128.6,"np_margin":28.89},{"client":"SOULSTICE","revenue":1059271.9,"gross_profit":346298.22,"gp_margin":32.69,"ebitda":-20531.89,"ebitda_margin":-1.94,"forex":-93378.9,"net_profit":72847.01,"np_margin":6.88},{"client":"STARIA","revenue":23384618.18,"gross_profit":3177613.46,"gp_margin":13.59,"ebitda":2387830.96,"ebitda_margin":10.21,"forex":-4575575.46,"net_profit":6963406.42,"np_margin":29.78},{"client":"SUREVISION","revenue":676130.68,"gross_profit":212191.26,"gp_margin":31.38,"ebitda":132233.5,"ebitda_margin":19.56,"forex":-54156.85,"net_profit":186390.35,"np_margin":27.57},{"client":"TACTIV","revenue":5752537.61,"gross_profit":1035401.17,"gp_margin":18.0,"ebitda":876901.23,"ebitda_margin":15.24,"forex":-910864.47,"net_profit":1787765.7,"np_margin":31.08},{"client":"TGI","revenue":7787816.24,"gross_profit":-343965.62,"gp_margin":-4.42,"ebitda":-1382522.57,"ebitda_margin":-17.75,"forex":-481898.06,"net_profit":-900624.51,"np_margin":-11.56},{"client":"TIGO","revenue":1490379.91,"gross_profit":407356.95,"gp_margin":27.33,"ebitda":353047.2,"ebitda_margin":23.69,"forex":-144208.26,"net_profit":497255.46,"np_margin":33.36},{"client":"TOAST","revenue":14026.72,"gross_profit":4119.22,"gp_margin":29.37,"ebitda":4119.22,"ebitda_margin":29.37,"forex":815.54,"net_profit":3303.68,"np_margin":23.55},{"client":"TRUSTEE","revenue":196561.23,"gross_profit":196561.23,"gp_margin":100.0,"ebitda":-13126.72,"ebitda_margin":-6.68,"forex":-11409.35,"net_profit":-1717.37,"np_margin":-0.87},{"client":"TUI","revenue":203388.71,"gross_profit":37367.26,"gp_margin":18.37,"ebitda":-50863.84,"ebitda_margin":-25.01,"forex":-9666.6,"net_profit":-41197.24,"np_margin":-20.26},{"client":"ULTIMO","revenue":1659592.69,"gross_profit":342350.86,"gp_margin":20.63,"ebitda":249100.39,"ebitda_margin":15.01,"forex":-316505.55,"net_profit":565605.94,"np_margin":34.08},{"client":"VARESE","revenue":904012.71,"gross_profit":404404.31,"gp_margin":44.73,"ebitda":317367.69,"ebitda_margin":35.11,"forex":-47689.84,"net_profit":365057.53,"np_margin":40.38},{"client":"VTSI","revenue":198022.09,"gross_profit":40477.4,"gp_margin":20.44,"ebitda":30578.25,"ebitda_margin":15.44,"forex":-32774.94,"net_profit":63353.19,"np_margin":31.99},{"client":"WORKLOCKER","revenue":2645078.37,"gross_profit":518040.35,"gp_margin":19.59,"ebitda":-37466.97,"ebitda_margin":-1.42,"forex":-615660.95,"net_profit":578193.98,"np_margin":21.86},{"client":"ZONE AND CO","revenue":3594691.36,"gross_profit":1176566.66,"gp_margin":32.73,"ebitda":1056610.63,"ebitda_margin":29.39,"forex":-167539.73,"net_profit":1224150.36,"np_margin":34.05}];
-
-const HC_MONTHS=['Dec-24','Jan-25','Feb-25','Mar-25','Apr-25','May-25','Jun-25','Jul-25','Aug-25','Sep-25','Oct-25','Nov-25','Dec-25','Jan-26','Feb-26','Mar-26','Apr-26','May-26'];
-const HC_RAW=[
-  {name:'KIT',tag:'Declining',hc:[49,49,49,46,46,46,47,47,45,45,45,44,44,43,43,43,42,41]},
-  {name:'STARIA',tag:'Stable',hc:[21,21,20,20,19,19,19,14,14,13,13,13,14,14,14,15,14,14]},
-  {name:'BPM',tag:'Dormant',hc:[15,15,15,15,15,17,17,17,17,17,17,17,17,17,17,17,17,17]},
-  {name:'MACROFIN',tag:'Growing',hc:[15,15,15,15,16,15,16,15,16,20,23,24,23,24,25,25,28,28]},
-  {name:'EKWANI',tag:'Stable',hc:[17,17,17,17,17,17,17,17,17,16,16,16,16,15,15,15,16,15]},
-  {name:'BRING IT',tag:'Declining',hc:[13,13,13,12,12,12,12,12,12,12,12,12,12,12,12,11,11,11]},
-  {name:'AVANO',tag:'Dormant',hc:[19,19,19,19,19,19,19,19,18,18,18,18,18,18,16,16,16,16]},
-  {name:'MOLLIE',tag:'Stable',hc:[6,9,7,8,9,10,9,9,9,10,9,12,11,9,9,9,9,9]},
-  {name:'MOSS ADAM',tag:'Dormant',hc:[5,5,5,5,5,5,5,5,5,5,5,5,5,5,4,4,4,4]},
-  {name:'DTSANZ',tag:'Declining',hc:[7,7,7,7,7,7,7,7,7,6,5,5,5,5,5,5,5,5]},
-  {name:'ONLINEONE',tag:'Declining',hc:[10,10,9,9,9,9,9,8,7,8,8,8,8,7,7,7,7,7]},
-  {name:'ELIVE',tag:'Dormant',hc:[8,8,8,7,7,7,7,7,6,6,6,6,6,6,6,6,6,6]},
-  {name:'BRIGHTFIN',tag:'Growing',hc:[9,9,9,9,10,10,9,9,10,10,10,10,10,10,11,12,12,13]},
-  {name:'DYNED',tag:'Dormant',hc:[5,5,5,5,5,1,1,1,1,1,1,1,1,1,1,1,1,1]},
-  {name:'CLOUD CULTURE',tag:'Dormant',hc:[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},
-  {name:'NUAGE',tag:'Growing',hc:[12,13,14,14,16,16,16,16,17,17,17,17,18,18,19,21,21,21]},
-  {name:'SENTRIEN',tag:'Dormant',hc:[2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
-  {name:'CIRRUS ERP',tag:'Stable',hc:[3,2,2,2,2,2,2,2,2,2,2,3,3,3,3,2,2,3]},
-  {name:'SOLAR',tag:'Dormant',hc:[3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},
-  {name:'SILK LETTER',tag:'Lost Client',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0]},
-  {name:'SUREVISION',tag:'Dormant',hc:[3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},
-  {name:'BLUEBRIDGE ONE',tag:'Dormant',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
-  {name:'LANDMARK',tag:'Dormant',hc:[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]},
-  {name:'NET AT WORK',tag:'Dormant',hc:[2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
-  {name:'PLAYQ',tag:'Dormant',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
-  {name:'LAYER3',tag:'Dormant',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
-  {name:'SOLUTIONS CLOUD',tag:'Growing',hc:[2,2,3,3,3,3,3,4,4,3,3,4,5,5,5,6,6,7]},
-  {name:'TACTIV',tag:'Dormant',hc:[6,6,7,7,7,7,7,7,7,7,7,6,6,6,6,6,6,6]},
-  {name:'VTSI',tag:'Dormant',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0]},
-  {name:'BEPOZ',tag:'Growing',hc:[39,44,47,53,54,60,64,66,70,71,71,86,89,95,94,94,98,112]},
-  {name:'OSI DIGITAL',tag:'Growing',hc:[18,21,22,21,22,22,22,24,24,24,24,24,24,26,26,28,32,32]},
-  {name:'PALLADIUM',tag:'Stable',hc:[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3]},
-  {name:'ONE DEGREE',tag:'Stable',hc:[3,3,4,4,4,4,4,4,4,3,3,3,3,3,3,3,3,3]},
-  {name:'VARESE',tag:'Dormant',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
-  {name:'311 CLOUD',tag:'Lost Client',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0]},
-  {name:'BLUECOLLAR',tag:'Stable',hc:[2,2,2,6,7,8,9,9,9,9,12,12,12,11,13,13,12,12]},
-  {name:'TIGO',tag:'Dormant',hc:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
-  {name:'BEZOS AI',tag:'Declining',hc:[3,2,3,2,2,2,2,1,1,1,1,1,1,2,2,2,2,1]},
-  {name:'MODULO',tag:'Stable',hc:[1,1,1,1,2,2,2,2,3,3,3,3,3,4,4,4,4,4]},
-  {name:'ZONE AND CO',tag:'Lost Client',hc:[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1,0,0]},
-  {name:'NETGAIN',tag:'Growing',hc:[7,9,12,13,15,15,16,16,16,16,16,19,21,28,27,28,30,31]},
-  {name:'GOLD BOND',tag:'Dormant',hc:[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
-  {name:'KLUGO',tag:'Declining',hc:[0,1,4,5,5,5,5,6,6,6,7,6,6,3,3,2,2,2]},
-  {name:'NET LOBSTER',tag:'Stable',hc:[0,1,1,1,1,0,1,1,2,2,2,2,2,2,2,3,3,3]},
-  {name:'ASG',tag:'Declining',hc:[0,0,3,4,7,6,6,6,5,3,3,3,3,3,1,1,1,1]},
-  {name:'TGI',tag:'Declining',hc:[0,0,4,5,5,7,7,7,7,7,18,24,25,25,25,25,7,7]},
-  {name:'KIMBERLITE',tag:'Dormant',hc:[0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
-  {name:'PEXAPARK',tag:'Stable',hc:[0,0,0,0,1,1,1,1,1,2,2,3,3,3,4,4,4,4]},
-  {name:'EXILE',tag:'Dormant',hc:[0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,1]},
-  {name:'WORKLOCKER',tag:'Dormant',hc:[0,0,0,0,0,1,2,2,2,2,2,3,3,3,3,3,3,3]},
-  {name:'ULTIMO',tag:'Dormant',hc:[0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,2,2]},
-  {name:'MERSIVE',tag:'Lost Client',hc:[0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0]},
-  {name:'PRITAM',tag:'Lost Client',hc:[0,0,0,0,0,0,0,0,0,2,2,2,2,2,0,0,0,0]},
-  {name:'ASHOKAN',tag:'Stable',hc:[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1]},
-  {name:'SANSA',tag:'Lost Client',hc:[0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,0]},
-  {name:'MAAS ENERGY',tag:'Stable',hc:[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1]},
-  {name:'APHOBOS',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0]},
-  {name:'GOLF SWAG',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1]},
-  {name:'SOULSTICE',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,2]},
-  {name:'PRIMARY',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1]},
-  {name:'BOARD INTERNATIONAL',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1]},
-  {name:'FLEXXUS',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1]},
-  {name:'TUI',tag:'new client',hc:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]},
-];
+const RAW_DATA=[{"client":"311 CLOUD","revenue":1959210.11,"gross_profit":549925.61,"gp_margin":28.07,"ebitda":484550.43,"ebitda_margin":24.73,"forex":-191811.58,"net_profit":676362.01,"np_margin":34.52},{"client":"APHOBOS","revenue":483621.91,"gross_profit":234506.84,"gp_margin":48.49,"ebitda":-511740.2,"ebitda_margin":-105.81,"forex":-22060.96,"net_profit":-489679.24,"np_margin":-101.25},{"client":"ASG","revenue":1180655.21,"gross_profit":404406.72,"gp_margin":34.25,"ebitda":295249.34,"ebitda_margin":25.01,"forex":-79121.57,"net_profit":374370.91,"np_margin":31.71},{"client":"ASHOKAN","revenue":1789576.92,"gross_profit":321868.72,"gp_margin":17.99,"ebitda":-428539.14,"ebitda_margin":-23.95,"forex":-197268.14,"net_profit":-231271.0,"np_margin":-12.92},{"client":"AVANO","revenue":9657184.46,"gross_profit":1508746.05,"gp_margin":15.62,"ebitda":1037123.72,"ebitda_margin":10.74,"forex":38096.46,"net_profit":999027.26,"np_margin":10.34},{"client":"BEPOZ","revenue":36568799.54,"gross_profit":4968369.76,"gp_margin":13.59,"ebitda":3052963.88,"ebitda_margin":8.35,"forex":-2940692.66,"net_profit":5993656.54,"np_margin":16.39},{"client":"BEZOS AI","revenue":822518.71,"gross_profit":232826.02,"gp_margin":28.31,"ebitda":116835.69,"ebitda_margin":14.2,"forex":-80384.55,"net_profit":197220.24,"np_margin":23.98},{"client":"BLUEBIRD","revenue":211044.44,"gross_profit":83544.44,"gp_margin":39.59,"ebitda":83544.44,"ebitda_margin":39.59,"forex":1150.74,"net_profit":82393.7,"np_margin":39.04},{"client":"BLUEBRIDGE ONE","revenue":1450391.72,"gross_profit":175203.27,"gp_margin":12.08,"ebitda":120667.6,"ebitda_margin":8.32,"forex":0.0,"net_profit":120667.6,"np_margin":8.32},{"client":"BLUECOLLAR","revenue":23422725.27,"gross_profit":2810792.39,"gp_margin":12.0,"ebitda":2022027.71,"ebitda_margin":8.63,"forex":-1850151.93,"net_profit":3872179.64,"np_margin":16.53},{"client":"BOARD INTERNATIONAL","revenue":2870755.01,"gross_profit":991748.18,"gp_margin":34.55,"ebitda":-120898.34,"ebitda_margin":-4.21,"forex":-190931.59,"net_profit":70033.25,"np_margin":2.44},{"client":"BPM","revenue":41302041.76,"gross_profit":4123393.3,"gp_margin":9.98,"ebitda":3012685.77,"ebitda_margin":7.29,"forex":-1057079.05,"net_profit":4069764.82,"np_margin":9.85},{"client":"BRIGHTFIN","revenue":19497386.04,"gross_profit":4448139.3,"gp_margin":22.81,"ebitda":3421780.67,"ebitda_margin":17.55,"forex":-1623595.1,"net_profit":5045375.77,"np_margin":25.88},{"client":"BRING IT","revenue":17873168.0,"gross_profit":960540.35,"gp_margin":5.37,"ebitda":318350.75,"ebitda_margin":1.78,"forex":-1927828.3,"net_profit":2246179.05,"np_margin":12.57},{"client":"BUSINESS SOLUTION PARTNERS","revenue":619361.6,"gross_profit":619361.6,"gp_margin":100.0,"ebitda":619361.6,"ebitda_margin":100.0,"forex":-3680.16,"net_profit":623041.76,"np_margin":100.59},{"client":"CIRRUS ERP","revenue":6779176.56,"gross_profit":2674452.4,"gp_margin":39.45,"ebitda":2074448.98,"ebitda_margin":30.6,"forex":-247217.83,"net_profit":2321666.81,"np_margin":34.25},{"client":"CLOUD CULTURE","revenue":2371354.39,"gross_profit":-78592.99,"gp_margin":-3.31,"ebitda":-146999.09,"ebitda_margin":-6.2,"forex":-606333.38,"net_profit":459334.29,"np_margin":19.37},{"client":"COGNIGY","revenue":1869529.47,"gross_profit":981196.08,"gp_margin":52.48,"ebitda":765295.02,"ebitda_margin":40.94,"forex":-108828.95,"net_profit":874123.97,"np_margin":46.76},{"client":"KIT","revenue":31538520.37,"gross_profit":10699289.29,"gp_margin":33.92,"ebitda":8106858.9,"ebitda_margin":25.7,"forex":-910352.8,"net_profit":9017211.7,"np_margin":28.59},{"client":"CYBEROPS","revenue":49396.33,"gross_profit":-16839.43,"gp_margin":-34.09,"ebitda":-115426.84,"ebitda_margin":-233.67,"forex":-1883.03,"net_profit":-113543.81,"np_margin":-229.86},{"client":"CYTHERA","revenue":712759.59,"gross_profit":235694.76,"gp_margin":33.07,"ebitda":196181.57,"ebitda_margin":27.52,"forex":-126799.29,"net_profit":322980.86,"np_margin":45.31},{"client":"DOOZY","revenue":323.98,"gross_profit":-150522.57,"gp_margin":-46460.45,"ebitda":-211688.54,"ebitda_margin":-65340.0,"forex":323.98,"net_profit":-212012.52,"np_margin":-65440.0},{"client":"DTSANZ","revenue":3872070.88,"gross_profit":809365.51,"gp_margin":20.9,"ebitda":606032.36,"ebitda_margin":15.65,"forex":-47439.82,"net_profit":653472.18,"np_margin":16.88},{"client":"DYNED","revenue":239989.66,"gross_profit":45046.48,"gp_margin":18.77,"ebitda":37275.04,"ebitda_margin":15.53,"forex":-71310.51,"net_profit":108585.55,"np_margin":45.25},{"client":"EAGLE","revenue":1302543.73,"gross_profit":598030.39,"gp_margin":45.91,"ebitda":598030.39,"ebitda_margin":45.91,"forex":-13971.55,"net_profit":612001.94,"np_margin":46.99},{"client":"EKWANI","revenue":31565943.57,"gross_profit":4960048.17,"gp_margin":15.71,"ebitda":4033632.17,"ebitda_margin":12.78,"forex":-3234784.81,"net_profit":7268416.98,"np_margin":23.03},{"client":"ELIVE","revenue":3165528.62,"gross_profit":849518.72,"gp_margin":26.84,"ebitda":646463.32,"ebitda_margin":20.42,"forex":-357219.73,"net_profit":1003683.05,"np_margin":31.71},{"client":"EXILE","revenue":837179.61,"gross_profit":252837.79,"gp_margin":30.2,"ebitda":183362.75,"ebitda_margin":21.9,"forex":-64721.98,"net_profit":248084.73,"np_margin":29.63},{"client":"FLEXXUS","revenue":401593.3,"gross_profit":275574.38,"gp_margin":68.62,"ebitda":71975.0,"ebitda_margin":17.92,"forex":-20567.72,"net_profit":92542.72,"np_margin":23.04},{"client":"FORUM","revenue":1673949.84,"gross_profit":670234.59,"gp_margin":40.04,"ebitda":490133.54,"ebitda_margin":29.28,"forex":-201052.75,"net_profit":691186.29,"np_margin":41.29},{"client":"GOLD BOND","revenue":1735451.47,"gross_profit":262717.5,"gp_margin":15.14,"ebitda":54660.61,"ebitda_margin":3.15,"forex":-160301.52,"net_profit":214962.13,"np_margin":12.39},{"client":"GOLF SWAG","revenue":774761.65,"gross_profit":305257.17,"gp_margin":39.4,"ebitda":241370.92,"ebitda_margin":31.15,"forex":-55294.59,"net_profit":296665.51,"np_margin":38.29},{"client":"HCGLOBAL","revenue":29918.4,"gross_profit":29918.4,"gp_margin":100.0,"ebitda":-33143.81,"ebitda_margin":-110.78,"forex":0.0,"net_profit":-33143.81,"np_margin":-110.78},{"client":"HUM","revenue":565733.06,"gross_profit":437635.65,"gp_margin":77.36,"ebitda":337442.68,"ebitda_margin":59.65,"forex":-34187.58,"net_profit":371630.26,"np_margin":65.69},{"client":"JACKSON","revenue":810841.89,"gross_profit":287772.93,"gp_margin":35.49,"ebitda":-31580.91,"ebitda_margin":-3.89,"forex":9088.49,"net_profit":-40669.4,"np_margin":-5.02},{"client":"KIMBERLITE","revenue":2439791.44,"gross_profit":396308.83,"gp_margin":16.24,"ebitda":-119254.9,"ebitda_margin":-4.89,"forex":-228619.11,"net_profit":109364.21,"np_margin":4.48},{"client":"KLUGO","revenue":3396133.84,"gross_profit":349591.39,"gp_margin":10.29,"ebitda":44683.44,"ebitda_margin":1.32,"forex":-675429.91,"net_profit":720113.35,"np_margin":21.2},{"client":"LAMA","revenue":0.0,"gross_profit":-44177.58,"gp_margin":0,"ebitda":-44177.58,"ebitda_margin":0,"forex":0.0,"net_profit":-44177.58,"np_margin":0},{"client":"LANDMARK","revenue":3455696.73,"gross_profit":741570.34,"gp_margin":21.46,"ebitda":545627.38,"ebitda_margin":15.79,"forex":-298859.98,"net_profit":844487.36,"np_margin":24.44},{"client":"LAYER3","revenue":636634.93,"gross_profit":184320.97,"gp_margin":28.95,"ebitda":141804.26,"ebitda_margin":22.27,"forex":-66538.15,"net_profit":208342.41,"np_margin":32.73},{"client":"MAAS ENERGY","revenue":2052759.9,"gross_profit":622820.27,"gp_margin":30.34,"ebitda":557334.21,"ebitda_margin":27.15,"forex":-225137.09,"net_profit":782471.3,"np_margin":38.12},{"client":"MACROFIN","revenue":36815078.01,"gross_profit":4743695.74,"gp_margin":12.89,"ebitda":3794090.84,"ebitda_margin":10.31,"forex":-855880.06,"net_profit":4649970.9,"np_margin":12.63},{"client":"MERSIVE","revenue":281099.05,"gross_profit":83791.54,"gp_margin":29.81,"ebitda":61981.0,"ebitda_margin":22.05,"forex":-18291.92,"net_profit":80272.92,"np_margin":28.56},{"client":"MODULO","revenue":4658969.23,"gross_profit":834618.41,"gp_margin":17.91,"ebitda":477853.43,"ebitda_margin":10.26,"forex":-369866.25,"net_profit":847719.68,"np_margin":18.2},{"client":"MOLLIE","revenue":2048803.39,"gross_profit":342795.68,"gp_margin":16.73,"ebitda":249355.38,"ebitda_margin":12.17,"forex":-292498.9,"net_profit":541854.28,"np_margin":26.45},{"client":"MOSS ADAM","revenue":7604477.26,"gross_profit":1496227.38,"gp_margin":19.68,"ebitda":1255829.11,"ebitda_margin":16.51,"forex":-1151639.34,"net_profit":2407468.45,"np_margin":31.66},{"client":"NET AT WORK","revenue":1086590.46,"gross_profit":241546.15,"gp_margin":22.23,"ebitda":181325.83,"ebitda_margin":16.69,"forex":-104654.75,"net_profit":285980.58,"np_margin":26.32},{"client":"NET LOBSTER","revenue":4242128.63,"gross_profit":812663.23,"gp_margin":19.16,"ebitda":439263.86,"ebitda_margin":10.35,"forex":-351146.37,"net_profit":790410.23,"np_margin":18.63},{"client":"NETGAIN","revenue":39498812.59,"gross_profit":8911133.95,"gp_margin":22.56,"ebitda":6476954.08,"ebitda_margin":16.4,"forex":-3485496.39,"net_profit":9962450.47,"np_margin":25.22},{"client":"NUAGE","revenue":36527884.04,"gross_profit":4735103.51,"gp_margin":12.96,"ebitda":3572257.44,"ebitda_margin":9.78,"forex":-903722.61,"net_profit":4475980.05,"np_margin":12.25},{"client":"ONE DEGREE","revenue":2570499.0,"gross_profit":777632.95,"gp_margin":30.25,"ebitda":641605.08,"ebitda_margin":24.96,"forex":-280684.85,"net_profit":922289.93,"np_margin":35.88},{"client":"ONLINEONE","revenue":12018959.79,"gross_profit":1332211.03,"gp_margin":11.08,"ebitda":949322.15,"ebitda_margin":7.9,"forex":-3232199.38,"net_profit":4181521.53,"np_margin":34.79},{"client":"OSI DIGITAL","revenue":39034590.45,"gross_profit":3870958.64,"gp_margin":9.92,"ebitda":2739410.37,"ebitda_margin":7.02,"forex":-4888231.48,"net_profit":7627641.85,"np_margin":19.54},{"client":"PALLADIUM","revenue":4199258.47,"gross_profit":1036242.38,"gp_margin":24.68,"ebitda":849534.77,"ebitda_margin":20.23,"forex":-387146.78,"net_profit":1236681.55,"np_margin":29.45},{"client":"PEXAPARK","revenue":3331435.7,"gross_profit":600491.89,"gp_margin":18.03,"ebitda":374022.6,"ebitda_margin":11.23,"forex":-207577.56,"net_profit":581600.16,"np_margin":17.46},{"client":"PLAYQ","revenue":765059.19,"gross_profit":214456.92,"gp_margin":28.03,"ebitda":169190.66,"ebitda_margin":22.11,"forex":-21750.45,"net_profit":190941.11,"np_margin":24.96},{"client":"PRIMARY","revenue":295842.86,"gross_profit":113968.86,"gp_margin":38.52,"ebitda":-175606.56,"ebitda_margin":-59.36,"forex":-23163.86,"net_profit":-152442.7,"np_margin":-51.53},{"client":"PRIME MSO","revenue":436983.6,"gross_profit":340569.81,"gp_margin":77.94,"ebitda":147737.16,"ebitda_margin":33.81,"forex":-17144.83,"net_profit":164881.99,"np_margin":37.73},{"client":"PRITAM","revenue":220219.56,"gross_profit":-16474.12,"gp_margin":-7.48,"ebitda":-354843.85,"ebitda_margin":-161.13,"forex":7396.72,"net_profit":-362240.57,"np_margin":-164.49},{"client":"RUX","revenue":367190.12,"gross_profit":367190.12,"gp_margin":100.0,"ebitda":367190.12,"ebitda_margin":100.0,"forex":7912.23,"net_profit":359277.89,"np_margin":97.85},{"client":"SANSA","revenue":515199.39,"gross_profit":-250550.93,"gp_margin":-48.63,"ebitda":-366769.76,"ebitda_margin":-71.19,"forex":-154498.42,"net_profit":-212271.34,"np_margin":-41.2},{"client":"SENTRIEN","revenue":1472583.3,"gross_profit":223573.68,"gp_margin":15.18,"ebitda":163081.5,"ebitda_margin":11.07,"forex":-140301.02,"net_profit":303382.52,"np_margin":20.6},{"client":"SERV OP CO","revenue":199726.89,"gross_profit":141548.19,"gp_margin":70.87,"ebitda":43886.67,"ebitda_margin":21.97,"forex":38013.9,"net_profit":5872.77,"np_margin":2.94},{"client":"SHWINCO","revenue":0.0,"gross_profit":-446.43,"gp_margin":0,"ebitda":-446.43,"ebitda_margin":0,"forex":0.0,"net_profit":-446.43,"np_margin":0},{"client":"SILK LETTER","revenue":0.0,"gross_profit":-42010.27,"gp_margin":0,"ebitda":-42010.27,"ebitda_margin":0,"forex":-10571.2,"net_profit":-31439.07,"np_margin":0},{"client":"SOLAR","revenue":842964.69,"gross_profit":-262588.28,"gp_margin":-31.15,"ebitda":-323065.41,"ebitda_margin":-38.32,"forex":-106904.28,"net_profit":-216161.13,"np_margin":-25.64},{"client":"SOLUTIONS CLOUD","revenue":6826867.32,"gross_profit":1826606.88,"gp_margin":26.76,"ebitda":1388170.42,"ebitda_margin":20.33,"forex":-634828.62,"net_profit":2022999.04,"np_margin":29.63},{"client":"SOULSTICE","revenue":1576879.28,"gross_profit":497961.04,"gp_margin":31.58,"ebitda":11344.4,"ebitda_margin":0.72,"forex":-140877.07,"net_profit":152221.47,"np_margin":9.65},{"client":"STARIA","revenue":27757264.78,"gross_profit":3745444.29,"gp_margin":13.49,"ebitda":2774734.13,"ebitda_margin":10.0,"forex":-4943566.16,"net_profit":7718300.29,"np_margin":27.81},{"client":"SUREVISION","revenue":771935.62,"gross_profit":223673.9,"gp_margin":28.98,"ebitda":133505.77,"ebitda_margin":17.29,"forex":-74616.74,"net_profit":208122.51,"np_margin":26.96},{"client":"TACTIV","revenue":6908170.48,"gross_profit":1243984.37,"gp_margin":18.01,"ebitda":1052800.36,"ebitda_margin":15.24,"forex":-1092597.57,"net_profit":2145397.93,"np_margin":31.06},{"client":"TGI","revenue":8492993.36,"gross_profit":-287151.13,"gp_margin":-3.38,"ebitda":-1455347.43,"ebitda_margin":-17.14,"forex":-923071.1,"net_profit":-532276.33,"np_margin":-6.27},{"client":"TIGO","revenue":1819713.13,"gross_profit":519811.06,"gp_margin":28.57,"ebitda":454440.08,"ebitda_margin":24.97,"forex":-179862.55,"net_profit":634302.63,"np_margin":34.86},{"client":"TOAST","revenue":27493.06,"gross_profit":11000.56,"gp_margin":40.01,"ebitda":11000.56,"ebitda_margin":40.01,"forex":815.54,"net_profit":10185.02,"np_margin":37.05},{"client":"TRUSTEE","revenue":274770.79,"gross_profit":274770.79,"gp_margin":100.0,"ebitda":-4973.74,"ebitda_margin":-1.81,"forex":-16674.85,"net_profit":11701.11,"np_margin":4.26},{"client":"TUI","revenue":571310.59,"gross_profit":51310.59,"gp_margin":8.98,"ebitda":-83557.04,"ebitda_margin":-14.63,"forex":-13919.4,"net_profit":-69637.64,"np_margin":-12.19},{"client":"ULTIMO","revenue":2017222.98,"gross_profit":419168.01,"gp_margin":20.78,"ebitda":306509.67,"ebitda_margin":15.19,"forex":-389264.53,"net_profit":695774.2,"np_margin":34.49},{"client":"VARESE","revenue":1043163.64,"gross_profit":352570.28,"gp_margin":33.8,"ebitda":257025.02,"ebitda_margin":24.64,"forex":-85917.0,"net_profit":342942.02,"np_margin":32.88},{"client":"VTSI","revenue":198022.09,"gross_profit":39541.75,"gp_margin":19.97,"ebitda":29642.6,"ebitda_margin":14.97,"forex":-32774.94,"net_profit":62417.54,"np_margin":31.52},{"client":"WORKLOCKER","revenue":3196990.39,"gross_profit":634794.64,"gp_margin":19.86,"ebitda":-76083.39,"ebitda_margin":-2.38,"forex":-724327.27,"net_profit":648243.88,"np_margin":20.28},{"client":"ZONE AND CO","revenue":3594691.36,"gross_profit":1112768.53,"gp_margin":30.96,"ebitda":992812.5,"ebitda_margin":27.62,"forex":-167539.73,"net_profit":1160352.23,"np_margin":32.28}];
+const HC_MONTHS=["Dec-24","Jan-25","Feb-25","Mar-25","Apr-25","May-25","Jun-25","Jul-25","Aug-25","Sep-25","Oct-25","Nov-25","Dec-25","Jan-26","Feb-26","Mar-26","Apr-26","May-26","Jun-26"];
+const HC_RAW=[{"name":"KIT","tag":"Declining","hc":[49,49,49,46,46,46,47,47,45,45,45,44,44,43,43,43,42,41,41]},{"name":"STARIA","tag":"Stable","hc":[21,21,20,20,19,19,19,14,14,13,13,13,14,14,14,15,14,14,15]},{"name":"BPM","tag":"Dormant","hc":[15,15,15,15,15,17,17,17,17,17,17,17,17,17,17,17,17,17,16]},{"name":"MACROFIN","tag":"Growing","hc":[15,15,15,15,16,15,16,15,16,20,23,24,23,24,25,25,28,28,28]},{"name":"EKWANI","tag":"Declining","hc":[17,17,17,17,17,17,17,17,17,16,16,16,16,15,15,15,16,15,14]},{"name":"BRING IT","tag":"Declining","hc":[13,13,13,12,12,12,12,12,12,12,12,12,12,12,12,11,11,11,11]},{"name":"AVANO","tag":"Dormant","hc":[19,19,19,19,19,19,19,19,18,18,18,18,18,18,16,16,16,16,15]},{"name":"MOLLIE","tag":"Stable","hc":[6,9,7,8,9,10,9,9,9,10,9,12,11,9,9,9,9,9,8]},{"name":"MOSS ADAM","tag":"Dormant","hc":[5,5,5,5,5,5,5,5,5,5,5,5,5,5,4,4,4,4,4]},{"name":"DTSANZ","tag":"Declining","hc":[7,7,7,7,7,7,7,7,7,6,5,5,5,5,5,5,5,5,5]},{"name":"ONLINEONE","tag":"Declining","hc":[10,10,9,9,9,9,9,8,7,8,8,8,8,7,7,7,7,7,7]},{"name":"ELIVE","tag":"Dormant","hc":[8,8,8,7,7,7,7,7,6,6,6,6,6,6,6,6,6,6,6]},{"name":"BRIGHTFIN","tag":"Growing","hc":[9,9,9,9,10,10,9,9,10,10,10,10,10,10,11,12,12,13,15]},{"name":"DYNED","tag":"Dormant","hc":[5,5,5,5,5,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},{"name":"CLOUD CULTURE","tag":"Dormant","hc":[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},{"name":"NUAGE","tag":"Growing","hc":[12,13,14,14,16,16,16,16,17,17,17,17,18,18,19,21,21,21,22]},{"name":"SENTRIEN","tag":"Dormant","hc":[2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},{"name":"CIRRUS ERP","tag":"Stable","hc":[3,2,2,2,2,2,2,2,2,2,2,3,3,3,3,2,2,3,3]},{"name":"SOLAR","tag":"Dormant","hc":[3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},{"name":"SILK LETTER","tag":"Lost Client","hc":[1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0]},{"name":"SUREVISION","tag":"Dormant","hc":[3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},{"name":"BLUEBRIDGE ONE","tag":"Dormant","hc":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},{"name":"LANDMARK","tag":"Dormant","hc":[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]},{"name":"NET AT WORK","tag":"Dormant","hc":[2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},{"name":"PLAYQ","tag":"Dormant","hc":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},{"name":"LAYER3","tag":"Dormant","hc":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},{"name":"SOLUTIONS CLOUD","tag":"Growing","hc":[2,2,3,3,3,3,3,4,4,3,3,4,5,5,5,6,6,7,7]},{"name":"TACTIV","tag":"Dormant","hc":[6,6,7,7,7,7,7,7,7,7,7,6,6,6,6,6,6,6,6]},{"name":"VTSI","tag":"Dormant","hc":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0]},{"name":"BEPOZ","tag":"Growing","hc":[39,44,47,53,54,60,64,66,70,71,71,86,89,95,94,94,98,112,113]},{"name":"OSI DIGITAL","tag":"Growing","hc":[18,21,22,21,22,22,22,24,24,24,24,24,24,26,26,28,32,32,30]},{"name":"PALLADIUM","tag":"Stable","hc":[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,3]},{"name":"ONE DEGREE","tag":"Stable","hc":[3,3,4,4,4,4,4,4,4,3,3,3,3,3,3,3,3,3,3]},{"name":"VARESE","tag":"Dormant","hc":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},{"name":"311 CLOUD","tag":"Lost Client","hc":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0]},{"name":"BLUECOLLAR","tag":"Declining","hc":[2,2,2,6,7,8,9,9,9,9,12,12,12,11,13,13,12,12,12]},{"name":"TIGO","tag":"Dormant","hc":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},{"name":"BEZOS AI","tag":"Declining","hc":[3,2,3,2,2,2,2,1,1,1,1,1,1,2,2,2,2,1,2]},{"name":"MODULO","tag":"Growing","hc":[1,1,1,1,2,2,2,2,3,3,3,3,3,4,4,4,4,4,6]},{"name":"ZONE AND CO","tag":"Lost Client","hc":[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1,0,0,0]},{"name":"NETGAIN","tag":"Growing","hc":[7,9,12,13,15,15,16,16,16,16,16,19,21,28,27,28,30,31,31]},{"name":"GOLD BOND","tag":"Dormant","hc":[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},{"name":"KLUGO","tag":"Declining","hc":[0,1,4,5,5,5,5,6,6,6,7,6,6,3,3,2,2,2,2]},{"name":"NET LOBSTER","tag":"Stable","hc":[0,1,1,1,1,0,1,1,2,2,2,2,2,2,2,3,3,3,3]},{"name":"ASG","tag":"Declining","hc":[0,0,3,4,7,6,6,6,5,3,3,3,3,3,1,1,1,1,1]},{"name":"TGI","tag":"Declining","hc":[0,0,4,5,5,7,7,7,7,7,18,24,25,25,25,25,7,7,7]},{"name":"KIMBERLITE","tag":"Dormant","hc":[0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},{"name":"PEXAPARK","tag":"Stable","hc":[0,0,0,0,1,1,1,1,1,2,2,3,3,3,4,4,4,4,4]},{"name":"EXILE","tag":"Dormant","hc":[0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,1,1]},{"name":"WORKLOCKER","tag":"Dormant","hc":[0,0,0,0,0,1,2,2,2,2,2,3,3,3,3,3,3,3,4]},{"name":"ULTIMO","tag":"Dormant","hc":[0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},{"name":"MERSIVE","tag":"Lost Client","hc":[0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0]},{"name":"PRITAM","tag":"Lost Client","hc":[0,0,0,0,0,0,0,0,0,2,2,2,2,2,0,0,0,0,0]},{"name":"ASHOKAN","tag":"Stable","hc":[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1]},{"name":"SANSA","tag":"Lost Client","hc":[0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,0,0]},{"name":"MAAS ENERGY","tag":"Stable","hc":[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1]},{"name":"APHOBOS","tag":"new client","hc":[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0]},{"name":"GOLF SWAG","tag":"new client","hc":[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1]},{"name":"SOULSTICE","tag":"new client","hc":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,2,3]},{"name":"PRIMARY","tag":"new client","hc":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1]},{"name":"BOARD INTERNATIONAL","tag":"new client","hc":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1]},{"name":"FLEXXUS","tag":"new client","hc":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1]},{"name":"TUI","tag":"new client","hc":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1]},{"name":"WRK NEXUS","tag":"new client","hc":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]}];
 
 const HC_MAP={};
 HC_RAW.forEach(r=>HC_MAP[r.name]=r);
@@ -604,6 +571,7 @@ function applyFilters(){
     if(id==='page-overview'){buildOverviewCharts();}
     if(id==='page-profitability'){buildProfitCharts();renderTop10('gp');}    if(id==='page-clients')renderFullTable();
     if(id==='page-atrisk')renderAtRiskFull();
+    if(id==='page-mustkeep')renderMustKeep(_mkFilter);
     if(id==='page-insights')buildInsights();
   }
 }
@@ -631,14 +599,20 @@ function buildAtRisk(){
   const el=document.getElementById('atRiskBanner');
   const cnt=document.getElementById('atRiskCount');
   if(cnt)cnt.textContent=ar.length||'—';
-  if(!ar.length){el.style.display='none';return;}
-  el.style.display='';
-  document.getElementById('atRiskCards').innerHTML=ar.slice(0,6).map(d=>`
-    <div class="alert-card" onclick="openModal('${d.client}')">
-      <div class="ac-client">${d.client}</div>
-      <div class="ac-reason">${d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ')}</div>
-      <div class="ac-metrics">Rev: ${fmt(d.revenue)} · EBITDA: <span style="color:var(--red);font-weight:700">${fmt(d.ebitda)}</span> · GP%: ${d.gp_margin.toFixed(1)}%</div>
-    </div>`).join('');
+  if(!ar.length){el.style.display='none';}
+  else{
+    el.style.display='';
+    document.getElementById('atRiskCards').innerHTML=ar.slice(0,6).map(d=>`
+      <div class="alert-card" onclick="openModal('${d.client}')">
+        <div class="ac-client">${d.client}</div>
+        <div class="ac-reason">${d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ')}</div>
+        <div class="ac-metrics">Rev: ${fmt(d.revenue)} · EBITDA: <span style="color:var(--red);font-weight:700">${fmt(d.ebitda)}</span> · GP%: ${d.gp_margin.toFixed(1)}%</div>
+      </div>`).join('');
+  }
+  // Set must keep badge
+  const mk=getMustKeepClients('all');
+  const mkCnt=document.getElementById('mustKeepCount');
+  if(mkCnt)mkCnt.textContent=mk.length||'—';
 }
 
 // ── Remarks: auto-flags + manual note combined ──
@@ -660,7 +634,96 @@ function renderAtRiskFull(){
   document.getElementById('atRiskFullTable').innerHTML=html;
 }
 
-// ── Concentration ──
+// ── Must Keep ──
+// Criteria: top 15 revenue OR top 15 net profit OR GP margin >= 30% with revenue > median
+function getMustKeepClients(filter){
+  const active=DATA.filter(d=>d.revenue>0);
+  const totalRev=active.reduce((a,x)=>a+x.revenue,0);
+  const byRev=[...active].sort((a,b)=>b.revenue-a.revenue);
+  const byNP=[...active].sort((a,b)=>b.net_profit-a.net_profit);
+  const medRev=byRev[Math.floor(byRev.length/2)]?.revenue||0;
+
+  const topRevSet=new Set(byRev.slice(0,15).map(d=>d.client));
+  const topNPSet=new Set(byNP.slice(0,15).map(d=>d.client));
+  const highMarginSet=new Set(active.filter(d=>d.gp_margin>=30&&d.revenue>medRev).map(d=>d.client));
+
+  let candidates=active.filter(d=>topRevSet.has(d.client)||topNPSet.has(d.client)||highMarginSet.has(d.client));
+
+  // Tag each with why they qualify
+  candidates=candidates.map(d=>({
+    ...d,
+    mkReasons:[
+      topRevSet.has(d.client)?'Top Revenue':'',
+      topNPSet.has(d.client)?'Top Net Profit':'',
+      highMarginSet.has(d.client)?'High Margin':'',
+    ].filter(Boolean),
+    revShare:(d.revenue/totalRev*100)
+  }));
+
+  if(filter==='revenue') return candidates.filter(d=>topRevSet.has(d.client)).sort((a,b)=>b.revenue-a.revenue);
+  if(filter==='margin')  return candidates.filter(d=>highMarginSet.has(d.client)).sort((a,b)=>b.gp_margin-a.gp_margin);
+  if(filter==='np')      return candidates.filter(d=>topNPSet.has(d.client)).sort((a,b)=>b.net_profit-a.net_profit);
+  // All: deduplicated, sorted by revenue
+  const seen=new Set();
+  return candidates.filter(d=>{ if(seen.has(d.client))return false; seen.add(d.client); return true; })
+    .sort((a,b)=>b.revenue-a.revenue);
+}
+
+let _mkFilter='all';
+function filterMustKeep(f,btn){
+  _mkFilter=f;
+  document.querySelectorAll('#page-mustkeep .tab-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderMustKeep(f);
+}
+
+function renderMustKeep(filter){
+  const clients=getMustKeepClients(filter||_mkFilter);
+  const totalRev=DATA.filter(d=>d.revenue>0).reduce((a,x)=>a+x.revenue,0);
+  const totalNP=DATA.filter(d=>d.revenue>0).reduce((a,x)=>a+x.net_profit,0);
+
+  // KPI summary strip
+  const mkRev=clients.reduce((a,x)=>a+x.revenue,0);
+  const mkNP=clients.reduce((a,x)=>a+x.net_profit,0);
+  const mkAvgGP=(clients.reduce((a,x)=>a+x.gp_margin,0)/clients.length)||0;
+  const mkAvgNP=(clients.reduce((a,x)=>a+x.np_margin,0)/clients.length)||0;
+  document.getElementById('mustKeepKPIs').innerHTML=`
+    <div class="kpi accent"><div class="kpi-lbl">Must Keep Clients</div><div class="kpi-val">${clients.length}</div><div class="kpi-sub">of ${DATA.filter(d=>d.revenue>0).length} active</div></div>
+    <div class="kpi"><div class="kpi-lbl">Combined Revenue</div><div class="kpi-val" style="color:var(--green)">${fmt(mkRev)}</div><div class="kpi-sub">${(mkRev/totalRev*100).toFixed(1)}% of portfolio</div></div>
+    <div class="kpi"><div class="kpi-lbl">Combined Net Profit</div><div class="kpi-val" style="color:var(--green)">${fmt(mkNP)}</div><div class="kpi-sub">${(mkNP/totalNP*100).toFixed(1)}% of portfolio NP</div></div>
+    <div class="kpi"><div class="kpi-lbl">Avg Margins</div><div class="kpi-val" style="color:var(--green)">${mkAvgNP.toFixed(1)}%</div><div class="kpi-sub">Avg GP: ${mkAvgGP.toFixed(1)}%</div></div>`;
+
+  // Table
+  let html=`<table><thead><tr>
+    <th>#</th><th>Client</th><th class="c">Why Must Keep</th>
+    <th class="r">Revenue</th><th class="c">Rev Share</th>
+    <th class="r">Gross Profit</th><th class="r">GP%</th>
+    <th class="r">EBITDA</th><th class="r">Net Profit</th><th class="r">NP%</th>
+    <th class="c">FTE</th><th class="c">HC Status</th><th>Remarks</th>
+  </tr></thead><tbody>`;
+  clients.forEach((d,i)=>{
+    const hc=getHC(d.client);
+    const fte=hc?hc.hc[HC_MONTHS.length-1]:null;
+    const reasonPills=d.mkReasons.map(r=>`<span style="display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;background:${r==='Top Revenue'?'#e0f0ff':r==='Top Net Profit'?'#d4f0c0':'#f3e8ff'};color:${r==='Top Revenue'?'#1a5aaa':r==='Top Net Profit'?'#1a5c28':'#6a0a8a'};margin:1px">${r}</span>`).join(' ');
+    html+=`<tr onclick="openModal('${d.client}')">
+      <td><span class="rank ${i===0?'g':i===1?'s':i===2?'b':''}">${i+1}</span></td>
+      <td><strong>${d.client}</strong></td>
+      <td class="c">${reasonPills}</td>
+      <td class="r">${fmt(d.revenue)}</td>
+      <td class="c"><div style="background:#e4f2d8;border-radius:3px;height:8px;width:80px;display:inline-block;overflow:hidden;vertical-align:middle"><div style="background:var(--green);height:100%;width:${Math.min(100,d.revShare*2)}%"></div></div> <span style="font-size:10px;color:var(--muted)">${d.revShare.toFixed(1)}%</span></td>
+      <td class="r">${fmt(d.gross_profit)}</td>
+      <td class="r">${pillPct(d.gp_margin)}</td>
+      <td class="r" style="color:${d.ebitda<0?'var(--red)':'inherit'}">${fmt(d.ebitda)}</td>
+      <td class="r" style="font-weight:700;color:${d.net_profit<0?'var(--red)':'var(--green)'}">${fmt(d.net_profit)}</td>
+      <td class="r">${pillPct(d.np_margin)}</td>
+      <td class="c" style="font-weight:700">${fte!==null?fte:'—'}</td>
+      <td class="c">${hc?`<span class="hc-tag ${hcTagClass(hc.tag)}">${hcTagLabel(hc.tag)}</span>`:'—'}</td>
+      <td>${renderRemarks(d)}</td>
+    </tr>`;
+  });
+  html+='</tbody></table>';
+  document.getElementById('mustKeepTable').innerHTML=html;
+}
 function buildConcentrationWarning(){
   const active=DATA.filter(d=>d.revenue>0);
   const totalRev=active.reduce((a,x)=>a+x.revenue,0);
@@ -1099,6 +1162,7 @@ function refreshAllTables(){
   if(id==='page-profitability') renderTop10('gp');
   if(id==='page-clients')   renderFullTable();
   if(id==='page-atrisk')    renderAtRiskFull();
+  if(id==='page-mustkeep')  renderMustKeep(_mkFilter);
 }
 
 // ── Notes UI ──
