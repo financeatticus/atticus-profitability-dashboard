@@ -1059,13 +1059,32 @@ function exportCSV(){
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  JSONBIN — shared notes (bin ID hardcoded — same for ALL users)
+//  SHARED NOTES — JSONBin with CORS-safe Access Key
+//  Master key = account auth (server-side only)
+//  Access key = bin-level read/write (browser CORS safe)
+//
+//  TO GET YOUR ACCESS KEY:
+//  1. Login at jsonbin.io → API Keys → Access Keys → + Create
+//  2. Give Read + Write on bin 6a3b5b0bf5f4af5e2926e332
+//  3. Paste the key below replacing PASTE_ACCESS_KEY_HERE
 // ══════════════════════════════════════════════════════════════════
-const JSONBIN_KEY    = '$2a$10$KRzvEyeQcVEQN/EQO0Y7v.SGMwJnSVyxTWsbL8Lntv.2YY/uHuxnK';
-const JSONBIN_BASE   = 'https://api.jsonbin.io/v3';
-const JSONBIN_BIN_ID = '6a3b5b0bf5f4af5e2926e332';
-let   _savePending   = false;
-let   _pollTimer     = null;
+const JSONBIN_ACCESS_KEY = '$2a$10$6yhmNfKQX3L0oJlpECQOd.qn8fSaqmZtG0r5Xi/qP1nvRzNoX4You';
+const JSONBIN_MASTER_KEY = '$2a$10$KRzvEyeQcVEQN/EQO0Y7v.SGMwJnSVyxTWsbL8Lntv.2YY/uHuxnK';
+const JSONBIN_BASE       = 'https://api.jsonbin.io/v3';
+const JSONBIN_BIN_ID     = '6a3b5b0bf5f4af5e2926e332';
+let   _savePending       = false;
+let   _pollTimer         = null;
+
+// Use Access Key for browser fetches (CORS-safe), Master Key as fallback
+function jbHeaders(write=false){
+  const key = (JSONBIN_ACCESS_KEY && JSONBIN_ACCESS_KEY !== 'PASTE_ACCESS_KEY_HERE')
+    ? JSONBIN_ACCESS_KEY
+    : JSONBIN_MASTER_KEY;
+  const h = { 'X-Access-Key': key };
+  if(write) h['Content-Type'] = 'application/json';
+  else h['X-Bin-Meta'] = 'false';
+  return h;
+}
 
 function jbStatus(msg, color){
   const el = document.getElementById('jbStatusBar');
@@ -1080,18 +1099,16 @@ async function jbLoad(){
   try{
     const res = await fetch(
       JSONBIN_BASE+'/b/'+JSONBIN_BIN_ID+'/latest',
-      { headers:{ 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' } }
+      { headers: jbHeaders(false) }
     );
     if(!res.ok){ jbStatus('⚠ Sync error '+res.status,'#e6a000'); return; }
     const remote = await res.json();
     if(remote && typeof remote==='object' && !Array.isArray(remote)){
       const hasContent = Object.values(remote).some(v=>v);
       if(hasContent){
-        // Remote wins — clear local and apply remote
         Object.keys(CLIENT_NOTES).forEach(k=>delete CLIENT_NOTES[k]);
         Object.assign(CLIENT_NOTES, remote);
         try{ localStorage.setItem('atticus_client_notes', JSON.stringify(CLIENT_NOTES)); }catch(e){}
-        // Populate commentary textareas if they exist
         const pn = document.getElementById('periodNotes');
         const an = document.getElementById('actionNotes');
         if(pn && CLIENT_NOTES['__period_notes__'] !== undefined)
@@ -1121,11 +1138,7 @@ async function jbSave(){
     try{
       const res = await fetch(
         JSONBIN_BASE+'/b/'+JSONBIN_BIN_ID,
-        {
-          method: 'PUT',
-          headers:{ 'Content-Type':'application/json', 'X-Master-Key': JSONBIN_KEY },
-          body: JSON.stringify(CLIENT_NOTES)
-        }
+        { method:'PUT', headers:jbHeaders(true), body:JSON.stringify(CLIENT_NOTES) }
       );
       if(!res.ok) throw new Error('HTTP '+res.status);
       if(syncEl){ syncEl.textContent='✓ Saved & synced'; setTimeout(()=>syncEl.style.display='none',3000); }
