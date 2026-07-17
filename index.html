@@ -14,11 +14,11 @@
   --red:#b02020;--amber:#e6b800;--blue:#1a5aaa;
   --sidebar-w:220px;
 }
-html,body{height:100%;overflow:hidden}
-body{font-family:Arial,sans-serif;background:var(--green-pale);color:var(--slate);font-size:13px;display:flex;flex-direction:column}
+html{height:100%}
+body{height:100%;margin:0;padding:0;font-family:Arial,sans-serif;background:var(--green-pale);color:var(--slate);font-size:13px;display:flex;flex-direction:column;overflow:hidden}
 
 /* ── TOP HEADER ── */
-.top-bar{background:var(--green);color:#fff;height:52px;display:flex;align-items:center;padding:0 18px;gap:14px;flex-shrink:0;z-index:100}
+.top-bar{background:var(--green);color:#fff;height:52px;min-height:52px;display:flex;align-items:center;padding:0 18px;gap:14px;flex-shrink:0;z-index:100;width:100%}
 .top-bar .logo{font-size:15px;font-weight:700;white-space:nowrap}
 .top-bar .period{font-size:11px;opacity:.75;margin-left:4px}
 .top-bar .spacer{flex:1}
@@ -29,11 +29,31 @@ body{font-family:Arial,sans-serif;background:var(--green-pale);color:var(--slate
 .btn.outline:hover{background:rgba(255,255,255,.25)}
 .btn.green{background:var(--green);color:#fff}
 
-/* ── SHELL ── */
-.shell{display:flex;flex:1;overflow:hidden}
+/* ── SHELL — side-by-side layout ── */
+.shell{
+  display:flex;
+  flex-direction:row;
+  flex:1;
+  min-height:0;
+  overflow:hidden;
+  width:100%;
+}
 
 /* ── SIDEBAR ── */
-.sidebar{width:var(--sidebar-w);background:var(--green);flex-shrink:0;display:flex;flex-direction:column;overflow-y:auto}
+nav.sidebar{
+  width:var(--sidebar-w);
+  min-width:var(--sidebar-w);
+  max-width:var(--sidebar-w);
+  flex-shrink:0;
+  flex-grow:0;
+  background:var(--green);
+  display:flex;
+  flex-direction:column;
+  overflow-y:auto;
+  overflow-x:hidden;
+  height:100%;
+  z-index:10;
+}
 .sidebar-logo{padding:20px 16px 10px;border-bottom:1px solid rgba(255,255,255,.12)}
 .sidebar-logo .org{font-size:12px;font-weight:700;color:#a8d890;text-transform:uppercase;letter-spacing:.5px}
 .sidebar-logo .app{font-size:14px;font-weight:700;color:#fff;margin-top:3px;line-height:1.3}
@@ -55,9 +75,24 @@ body{font-family:Arial,sans-serif;background:var(--green-pale);color:var(--slate
 .upload-status.error{display:block;background:rgba(220,80,80,.15);color:#ffaaaa}
 
 /* ── MAIN CONTENT ── */
-.content{flex:1;overflow-y:auto;display:flex;flex-direction:column}
-.page{display:none;padding:20px 24px;flex:1}
+.content{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  height:100%;
+}
+.content-scroll{
+  flex:1;
+  overflow-y:auto;
+  min-height:0;
+}
+.page{display:none;padding:20px 24px}
 .page.active{display:block}
+/* Collections iframe page — flush, full height, no scroll */
+#page-collections{padding:0!important;overflow:hidden;height:100%;display:none}
+#page-collections.active{display:flex;flex-direction:column}
 
 /* ── SEARCH BAR (top of content) ── */
 .content-bar{background:#fff;border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0}
@@ -248,7 +283,10 @@ tbody td.c{text-align:center}
   </div>
 
   <div class="nav-divider"></div>
-  <div class="sidebar-bottom">
+  <div class="sidebar-section">Collections</div>
+  <div class="nav-item" onclick="nav('collections',this)">
+    <span class="icon">💳</span><span class="label">AR Aging</span>
+  </div>
     <div class="sidebar-section" style="padding:0 0 8px">Data Sources</div>
 
     <div class="upload-zone" id="uploadDrop"
@@ -279,7 +317,6 @@ tbody td.c{text-align:center}
       </button>
     </div>
     <div id="jbStatusBar" style="display:none;font-size:10px;padding:4px 6px;border-radius:4px;background:rgba(255,255,255,.08);margin-top:6px;text-align:center"></div>
-  </div>
 </nav>
 
 <!-- CONTENT AREA -->
@@ -289,6 +326,8 @@ tbody td.c{text-align:center}
     <input type="text" class="search-box" id="searchInput" placeholder="🔍 Search clients…" oninput="applyFilters()">
     <span class="period-badge" id="periodInfo">Data as at 30 June 2026</span>
   </div>
+  <!-- Scrollable pages -->
+  <div class="content-scroll" id="contentScroll">
 
   <!-- ══ PAGE: OVERVIEW ══ -->
   <div class="page active" id="page-overview">
@@ -490,6 +529,34 @@ tbody td.c{text-align:center}
     </div>
   </div>
 
+  <!-- ══ PAGE: COLLECTIONS / AR AGING ══ -->
+  <div class="page" id="page-collections">
+    <iframe
+      id="arFrame"
+      src="about:blank"
+      style="width:100%;flex:1;min-height:0;border:none;display:none"
+      allow="same-origin"
+      title="AR Aging Dashboard">
+    </iframe>
+    <div id="arPlaceholder" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--green-pale)">
+      <div style="font-size:48px">💳</div>
+      <div style="font-size:16px;font-weight:700;color:var(--green)">AR Aging &amp; Collection Monitoring</div>
+      <div style="font-size:13px;color:var(--muted);max-width:420px;text-align:center;line-height:1.6">
+        Click <strong>Load from GitHub Pages</strong> to open the live AR dashboard, or upload the HTML file directly.
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <button class="btn green" onclick="loadArFromGithub()" style="padding:9px 20px">
+          🌐 Load from GitHub Pages
+        </button>
+        <label class="btn" style="background:var(--green-light);color:var(--green);border:1px solid var(--border);padding:9px 20px;cursor:pointer">
+          📂 Upload AR Dashboard HTML
+          <input type="file" accept=".html" style="display:none" onchange="loadArFromFile(event)">
+        </label>
+      </div>
+      <div id="arLoadError" style="font-size:11px;color:var(--red);display:none;margin-top:4px"></div>
+    </div>
+  </div><!-- /page-collections -->
+  </div><!-- /content-scroll -->
 </div><!-- /content -->
 </div><!-- /shell -->
 
@@ -522,6 +589,7 @@ function nav(page, el) {
   if (page === 'clients') renderFullTable();
   if (page === 'atrisk') renderAtRiskFull();
   if (page === 'mustkeep') renderMustKeep('all');
+  if (page === 'collections') initArFrame();
   if (page === 'insights') buildInsights();
 }
 
@@ -617,6 +685,58 @@ function buildAtRisk(){
 }
 
 // ── Remarks: auto-flags + manual note combined ──
+// ── AR Aging iframe ──
+const AR_GITHUB_URL = 'https://financeatticus.github.io/collection-monitoring-dashboard/';
+let _arLoaded = false;
+
+function initArFrame(){
+  const frame       = document.getElementById('arFrame');
+  const placeholder = document.getElementById('arPlaceholder');
+  if(!frame) return;
+  if(_arLoaded && frame.src && frame.src !== 'about:blank'){
+    frame.style.display       = 'block';
+    placeholder.style.display = 'none';
+    return;
+  }
+  frame.style.display       = 'none';
+  placeholder.style.display = 'flex';
+}
+
+function loadArFromGithub(){
+  const frame       = document.getElementById('arFrame');
+  const placeholder = document.getElementById('arPlaceholder');
+  const errEl       = document.getElementById('arLoadError');
+  errEl.style.display = 'none';
+  frame.src = AR_GITHUB_URL;
+  frame.style.display       = 'block';
+  placeholder.style.display = 'none';
+  _arLoaded = true;
+}
+
+function loadArFromFile(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const frame       = document.getElementById('arFrame');
+  const placeholder = document.getElementById('arPlaceholder');
+  const errEl       = document.getElementById('arLoadError');
+  const reader = new FileReader();
+  reader.onload = e => {
+    const blob = new Blob([e.target.result], {type:'text/html'});
+    const url  = URL.createObjectURL(blob);
+    frame.src  = url;
+    frame.style.display       = 'block';
+    placeholder.style.display = 'none';
+    errEl.style.display       = 'none';
+    _arLoaded = true;
+  };
+  reader.onerror = () => {
+    errEl.textContent     = '⚠ Could not read file.';
+    errEl.style.display   = 'block';
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
 function renderRemarks(d){
   const pills=d.flags.map(f=>`<span class="flag-pill ${f.cls}">${f.label}</span>`).join(' ');
   const note=(CLIENT_NOTES[d.client]||'').trim();
